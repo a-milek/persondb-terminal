@@ -1,0 +1,21 @@
+# Build the nRF5340 DK firmware from source on every push, and keep the hex.
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      # west's workspace is the directory above the repository, so check it
+      # out one level down.
+      - uses: actions/checkout@v4
+        with:
+          path: persondb-terminal
+      - run: ./persondb-terminal/scripts/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: persondb-terminal-nrf5340dk
+          path: build/persondb-terminal/zephyr/zephyr.hex

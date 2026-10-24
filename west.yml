@@ -1,0 +1,44 @@
+# persondb-terminal — west manifest.
+#
+# Every revision is pinned to the exact commit the firmware in firmware/ was
+# built and tested with, so `west update` reproduces that build.
+#
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+manifest:
+  self:
+    path: persondb-terminal
+
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+    - name: wmilek
+      url-base: https://github.com/wmilek
+    - name: kamil-kielbasa
+      url-base: https://github.com/kamil-kielbasa
+
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: 3b42ac0d24bda3d655b70127186bd43115d69223
+      import:
+        # Only the modules this application needs; the revisions come from
+        # zephyr's own west.yml at the commit above.
+        name-allowlist:
+          - cmsis_6        # the ARM port for Cortex-M
+          - hal_nordic     # nRF5340 drivers
+          - zcbor          # the CBOR codec of the person records
+          - mbedtls        # PSA Crypto for zephyr-ubi
+          - tf-psa-crypto
+    # blob_db, rootreg and kvhash: the storage stack under persondb, as a
+    # Zephyr module.
+    - name: key_value_db
+      remote: wmilek
+      revision: 8fe5155a4853085fe73bd34dfcba526b5888062f
+      path: modules/lib/key_value_db
+    # UBI flash virtualization under blob_db (CONFIG_BLOB_DB_BACKEND_UBI).
+    - name: zephyr-ubi
+      remote: kamil-kielbasa
+      revision: d66b599af9ef75b7d2b272a697f59bc11c247f64   # v0.1.0
+      path: modules/lib/zephyr-ubi
