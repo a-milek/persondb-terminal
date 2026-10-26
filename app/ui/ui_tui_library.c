@@ -996,6 +996,9 @@ void tui_library_run(void)
 			detect_size();
 			break;
 		case 's':
+			if (TUI_STANDALONE) {
+				break;
+			}
 			store_close();
 			return;
 		case 'q':

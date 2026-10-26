@@ -32,13 +32,16 @@ project(app_cbor_persondb LANGUAGES C)
 # it) and flights/ (the made-up airports and flights, a pure function of an
 # index). The library catalogue has the same shape again: librarydb/ (with
 # library_cbor) and library/ (the made-up books and loans). The sign-on
-# screen picks which one to show.
+# screen picks which one to show, or a build holds one alone
+# (CONFIG_APP_CBOR_PERSONDB_TUI_*).
 #
 add_subdirectory(dataset)
 add_subdirectory(persondb)
-if(CONFIG_APP_CBOR_PERSONDB_FRONTEND_TUI)
+if(CONFIG_APP_CBOR_PERSONDB_TUI_HAS_FLIGHTS)
   add_subdirectory(flights)
   add_subdirectory(flightdb)
+endif()
+if(CONFIG_APP_CBOR_PERSONDB_TUI_HAS_LIBRARY)
   add_subdirectory(library)
   add_subdirectory(librarydb)
 endif()

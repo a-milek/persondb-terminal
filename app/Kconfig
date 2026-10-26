@@ -44,6 +44,40 @@ config APP_CBOR_PERSONDB_FRONTEND_TUI
 
 endchoice
 
+choice APP_CBOR_PERSONDB_TUI_APP
+	prompt "Applications in the terminal"
+	depends on APP_CBOR_PERSONDB_FRONTEND_TUI
+	default APP_CBOR_PERSONDB_TUI_ALL
+
+config APP_CBOR_PERSONDB_TUI_ALL
+	bool "Every database, behind a sign-on screen"
+	help
+	  One firmware with the person, flight and library databases on the
+	  same flash, each under its own registry key. The sign-on screen
+	  picks one and S in it comes back.
+
+config APP_CBOR_PERSONDB_TUI_PERSONS
+	bool "The person database only"
+	help
+	  A build that opens straight into the person database, with no
+	  sign-on screen, and holds nothing else on its flash.
+
+config APP_CBOR_PERSONDB_TUI_FLIGHTS
+	bool "The flight database only"
+
+config APP_CBOR_PERSONDB_TUI_LIBRARY
+	bool "The library catalogue only"
+
+endchoice
+
+# Which applications the build compiles: for CMake and #if.
+config APP_CBOR_PERSONDB_TUI_HAS_PERSONS
+	def_bool APP_CBOR_PERSONDB_TUI_ALL || APP_CBOR_PERSONDB_TUI_PERSONS
+config APP_CBOR_PERSONDB_TUI_HAS_FLIGHTS
+	def_bool APP_CBOR_PERSONDB_TUI_ALL || APP_CBOR_PERSONDB_TUI_FLIGHTS
+config APP_CBOR_PERSONDB_TUI_HAS_LIBRARY
+	def_bool APP_CBOR_PERSONDB_TUI_ALL || APP_CBOR_PERSONDB_TUI_LIBRARY
+
 # On native_sim the TUI is most useful in the invoking terminal, which it
 # then reads and draws exactly as it would a board's serial port. Put the
 # terminal in raw mode first (stty raw -echo) so the arrow keys arrive

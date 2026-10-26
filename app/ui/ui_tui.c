@@ -1141,6 +1141,9 @@ void tui_persons_run(void)
 			detect_size();
 			break;
 		case 's':
+			if (TUI_STANDALONE) {
+				break;
+			}
 			store_close();
 			return;
 		case 'q':

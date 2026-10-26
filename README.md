@@ -154,6 +154,31 @@ The terminal must be at least 72x20 characters. Larger windows show more rows.
   nRF Util or the nRF Connect *Programmer* app, then connect with PuTTY (or
   `screen` on macOS) at 115200 baud and press Ctrl+L.
 
+## Running without a board
+
+Each database also runs as its own application in Zephyr's simulator
+(native_sim), in your terminal. The only requirement is Docker. The simulated
+flash is a file, so every database is a separate file under `dbs/<app>/` next to
+the repository, and a new name starts empty.
+
+```sh
+./scripts/sim.sh persons work      # the person database, in dbs/persons/work.bin
+./scripts/sim.sh flights demo      # the flight database, in dbs/flights/demo.bin
+./scripts/sim.sh library city      # the library catalogue, in dbs/library/city.bin
+./scripts/sim.sh all medium        # all three behind the sign-on screen, as on the DK
+./scripts/sim.sh --list            # every database of every application
+./scripts/mkdb.py library big 1000 # make a filled database (here 1000 books)
+```
+
+Each application opens straight into its database, without the sign-on
+screen. `--erase` empties a database before opening it, `--ram` uses a
+throwaway one, and `--build` rebuilds the simulator after a code change (it is
+built on first use). Press **Q** to sign off, or Ctrl+C to stop.
+
+The same split is a build option for the DK:
+`-DCONFIG_APP_CBOR_PERSONDB_TUI_LIBRARY=y` (or `_PERSONS`, `_FLIGHTS`) builds a
+firmware that holds only that database.
+
 ## Building from source
 
 The only requirement is Docker. The build runs inside Zephyr's CI image and
@@ -190,7 +215,7 @@ app/             the Zephyr application
   library/       the generator for the made-up books and loans
   DESIGN.md      how the storage is laid out, and why
 firmware/        prebuilt firmware for the nRF5340 DK
-scripts/         build.sh, flash.sh, connect.sh
+scripts/         build.sh, flash.sh, connect.sh, sim.sh, mkdb.py
 west.yml         pinned Zephyr, key_value_db and module revisions
 ```
 

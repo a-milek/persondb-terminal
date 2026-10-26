@@ -23,7 +23,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <zephyr/sys/util.h>
 #include <zephyr/toolchain.h>
+
+/* A build with one application and no sign-on screen to return to: S does
+ * nothing and is not offered. */
+#define TUI_STANDALONE (!IS_ENABLED(CONFIG_APP_CBOR_PERSONDB_TUI_ALL))
 
 /* Larger terminals are used up to this size; the rest stays blank. */
 #define MAX_COLS 132

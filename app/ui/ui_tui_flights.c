@@ -1140,6 +1140,9 @@ void tui_flights_run(void)
 			detect_size();
 			break;
 		case 's':
+			if (TUI_STANDALONE) {
+				break;
+			}
 			store_close();
 			return;
 		case 'q':

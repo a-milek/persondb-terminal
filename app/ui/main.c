@@ -11,8 +11,8 @@
 
 #include <zephyr/kernel.h>
 
-/** Provided by ui_bench.c, ui_shell.c or ui_tui_main.c, whichever the build
- *  selected. */
+/** Provided by ui_bench.c, ui_shell.c, ui_tui_main.c or ui_tui_single.c,
+ *  whichever the build selected. */
 int ui_main(void);
 
 int main(void)
