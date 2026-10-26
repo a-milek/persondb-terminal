@@ -30,13 +30,17 @@ project(app_cbor_persondb LANGUAGES C)
 # one on the same flash, in the same shape: ui/ -> scenario/flight_scenario ->
 # flightdb/ (the only layer that touches storage, with flight_cbor private to
 # it) and flights/ (the made-up airports and flights, a pure function of an
-# index). Its sign-on screen picks which one to show.
+# index). The library catalogue has the same shape again: librarydb/ (with
+# library_cbor) and library/ (the made-up books and loans). The sign-on
+# screen picks which one to show.
 #
 add_subdirectory(dataset)
 add_subdirectory(persondb)
 if(CONFIG_APP_CBOR_PERSONDB_FRONTEND_TUI)
   add_subdirectory(flights)
   add_subdirectory(flightdb)
+  add_subdirectory(library)
+  add_subdirectory(librarydb)
 endif()
 add_subdirectory(scenario)
 add_subdirectory(ui)

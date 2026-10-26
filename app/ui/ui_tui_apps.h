@@ -23,4 +23,9 @@ void tui_flights_run(void);
 /** Open the flight store just long enough to count what it holds. */
 int tui_flights_count(uint32_t *airports, uint32_t *flights);
 
+/** Run the library catalogue until the operator presses S. */
+void tui_library_run(void);
+/** Open the library store just long enough to count what it holds. */
+int tui_library_count(uint32_t *books, uint32_t *on_loan);
+
 #endif /* APP_CBOR_PERSONDB_UI_TUI_APPS_H_ */

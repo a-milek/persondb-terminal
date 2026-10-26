@@ -2,9 +2,9 @@
  * Copyright (c) 2026
  * SPDX-License-Identifier: Apache-2.0
  *
- * ui_tui_main — the sign-on screen: one firmware, both databases.
+ * ui_tui_main — the sign-on screen: one firmware, every database.
  *
- * The person store and the flight store share the flash under their own
+ * The person, flight and library stores share the flash under their own
  * registry keys. This screen opens each in turn, shows what it holds, and
  * runs the application the operator picks (ui_tui_apps.h); S in either one
  * comes back here. Nothing is erased by switching.
@@ -24,12 +24,14 @@
 enum app {
 	APP_PERSONS,
 	APP_FLIGHTS,
+	APP_LIBRARY,
 	APP__COUNT,
 };
 
 static const char *const app_name[APP__COUNT] = {
 	[APP_PERSONS] = "PERSONDB ACCESS CONTROL",
 	[APP_FLIGHTS] = "FLIGHT INFORMATION",
+	[APP_LIBRARY] = "LIBRARY CATALOGUE",
 };
 
 /* What each store held when this screen last looked. */
@@ -39,7 +41,7 @@ static int g_sel;
 
 static void survey(void)
 {
-	uint32_t persons = 0, airports = 0, flights = 0;
+	uint32_t persons = 0, airports = 0, flights = 0, books = 0, on_loan = 0;
 	int rc;
 
 	rc = tui_persons_count(&persons);
@@ -65,12 +67,23 @@ static void survey(void)
 			 "%u airports, %u flights", airports, flights);
 	}
 
+	rc = tui_library_count(&books, &on_loan);
+	g_has_data[APP_LIBRARY] = (rc == 0 && books > 0);
+	if (rc != 0) {
+		snprintf(g_contents[APP_LIBRARY], sizeof(g_contents[0]), "open failed: %d (%s)",
+			 rc, errstr(rc));
+	} else if (!g_has_data[APP_LIBRARY]) {
+		strcpy(g_contents[APP_LIBRARY], "empty");
+	} else {
+		snprintf(g_contents[APP_LIBRARY], sizeof(g_contents[0]), "%u books, %u on loan",
+			 books, on_loan);
+	}
 }
 
 static void draw_signon(void)
 {
 	static const char *const hints[] = {
-		"ENTER", "SIGN IN", "1/2", "SELECT", "Q", "SIGN OFF",
+		"ENTER", "SIGN IN", "1-3", "SELECT", "Q", "SIGN OFF",
 	};
 	static const char sys[] = "PERSONDB TERMINAL";
 	uint32_t now = SCENARIO_BENCH_NOW + (uint32_t)(k_uptime_get() / 1000);
@@ -97,9 +110,10 @@ static void draw_signon(void)
 		put(top + 3 + i, 2, cols - 4, st, "%-4d %-26s %s", i + 1, app_name[i],
 		    g_contents[i]);
 	}
-	put(top + 6, 2, cols - 4, ST_DIM,
-	    "Both stores share the flash; switching keeps their data.");
-	put(top + 7, 2, cols - 4, ST_DIM, "Press S in an application to return here.");
+	put(top + 4 + APP__COUNT, 2, cols - 4, ST_DIM,
+	    "All stores share the flash; switching keeps their data.");
+	put(top + 5 + APP__COUNT, 2, cols - 4, ST_DIM,
+	    "Press S in an application to return here.");
 
 	tui_footer(hints, ARRAY_SIZE(hints), " 1A  ONLINE", "LU SON01 ");
 }
@@ -112,10 +126,16 @@ static void run(int app)
 {
 	status(ST_NORMAL, "%s", "");
 	g_log_n = 0;
-	if (app == APP_PERSONS) {
+	switch (app) {
+	case APP_PERSONS:
 		tui_persons_run();
-	} else {
+		break;
+	case APP_FLIGHTS:
 		tui_flights_run();
+		break;
+	default:
+		tui_library_run();
+		break;
 	}
 	status(ST_NORMAL, "%s", "");
 	draw = draw_signon;
@@ -133,10 +153,15 @@ int ui_main(void)
 
 	draw = draw_signon;
 	survey();
-	/* Start on the store that holds something; the person database if both
-	 * or neither do. */
-	g_sel = (!g_has_data[APP_PERSONS] && g_has_data[APP_FLIGHTS]) ? APP_FLIGHTS
-								    : APP_PERSONS;
+	/* Start on the first store that holds something; the person database
+	 * if none does. */
+	g_sel = APP_PERSONS;
+	for (int i = 0; i < APP__COUNT; i++) {
+		if (g_has_data[i]) {
+			g_sel = i;
+			break;
+		}
+	}
 	screen_enter();
 	for (;;) {
 		int k;
@@ -145,13 +170,15 @@ int ui_main(void)
 		present();
 		k = getkey(1000);       /* a second without a key: redraw the clock */
 		switch (k) {
-		case K_UP:
 		case K_DOWN:
 		case K_TAB:
-		case K_BTAB:
 			g_sel = (g_sel + 1) % APP__COUNT;
 			break;
-		case '1': case '2':
+		case K_UP:
+		case K_BTAB:
+			g_sel = (g_sel + APP__COUNT - 1) % APP__COUNT;
+			break;
+		case '1': case '2': case '3':
 			g_sel = k - '1';
 			break;
 		case K_ENTER:

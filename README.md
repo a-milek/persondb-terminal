@@ -43,9 +43,9 @@ anything. To quit picocom, press **Ctrl+A** then **Ctrl+X**.
 
 ### First run
 
-The terminal opens on a sign-on screen (SON100) that lists its two databases,
-the person database and the flight information, with what each store holds.
-Pick one with the arrow keys or **1** / **2** and press Enter. Press **S** in
+The terminal opens on a sign-on screen (SON100) that lists its three databases,
+the person database, the flight information and the library catalogue, with
+what each store holds. Pick one with the arrow keys or **1** to **3** and press Enter. Press **S** in
 either one to come back and switch; nothing is lost by switching.
 
 The person store starts empty. Press **F**, enter how many people to generate, and
@@ -89,7 +89,7 @@ The second database on the sign-on screen is a made-up airline, with
 fictional airports and a daily schedule of departures. It is a separate store
 on the same external flash as the persons, under its own registry key, and
 the same keys work in it. **Reset store** in the person database erases the
-whole flash, flights included. **Reset flight store** erases only the flights.
+whole flash, flights and library included. **Reset flight store** erases only the flights.
 
 The screens show what the flight store holds. It starts empty: press **F** and
 the board writes 20 airports and up to 240 flights to flash. Flight status
@@ -111,6 +111,30 @@ F7 / F8 show the previous / next airport.
 
 **System utilities (FLT900):** store statistics, plus fill, verify (compare
 every record with the generator) and reset.
+
+### Library catalogue
+
+The third database is a made-up lending library: books by fictional authors,
+shelved by subject, and the loans of their copies. Like the flights it is a
+separate store on the same flash under its own registry key. It starts empty:
+press **F** and enter how many books to add (up to 2048). About a third of the
+copies are written as already lent out, some of them overdue.
+
+**Catalogue (LIB100):** every book with its call number and how many copies
+are on the shelf. **/** finds the next book whose title, author or call number
+starts with what you type, or with that ISBN. Enter opens the book.
+
+**Book display (LIB110):** details and the copies, with who has each one and
+when it is due. Select a copy with Up / Down, then **L** lends it (card number
+and borrower name), **R** returns it and **N** renews it for another 21 days
+(at most three times). F7 / F8 show the previous / next book.
+
+**Loans (LIB200):** every loan, oldest first, with its status: ON LOAN,
+DUE SOON, DUE TODAY, OVERDUE or RETURNED. **O** jumps to the next overdue loan
+and Enter opens its book.
+
+**System utilities (LIB900):** store statistics, plus fill, verify (check the
+books against the generator, and every loan against its book) and reset.
 
 The terminal must be at least 72x20 characters. Larger windows show more rows.
 
@@ -155,12 +179,15 @@ If you already have a Zephyr setup with SDK 1.0.1:
 ```
 app/             the Zephyr application
   ui/            the terminal: tui.c draws, ui_tui_main.c is the sign-on
-                 screen, ui_tui.c the persons, ui_tui_flights.c the flights
+                 screen, ui_tui.c the persons, ui_tui_flights.c the flights,
+                 ui_tui_library.c the library
   scenario/      operations on the stores: fill, verify, benchmark
   persondb/      the person and credential database API
   dataset/       the generator for synthetic people
   flightdb/      the flight and airport database API
   flights/       the generator for the made-up airline schedule
+  librarydb/     the book and loan database API
+  library/       the generator for the made-up books and loans
   DESIGN.md      how the storage is laid out, and why
 firmware/        prebuilt firmware for the nRF5340 DK
 scripts/         build.sh, flash.sh, connect.sh
