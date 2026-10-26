@@ -43,7 +43,12 @@ anything. To quit picocom, press **Ctrl+A** then **Ctrl+X**.
 
 ### First run
 
-The store starts empty. Press **F**, enter how many people to generate, and
+The terminal opens on a sign-on screen (SON100) that lists its two databases,
+the person database and the flight information, with what each store holds.
+Pick one with the arrow keys or **1** / **2** and press Enter. Press **S** in
+either one to come back and switch; nothing is lost by switching.
+
+The person store starts empty. Press **F**, enter how many people to generate, and
 press Enter. The external flash writes at roughly one person per second, so
 200 people take about 3 minutes. Press **F3** to stop a fill partway through.
 Everything written so far is kept.
@@ -57,6 +62,7 @@ Everything written so far is kept.
 | Enter | Open the selected item, or run the selected action |
 | F3 (or Esc) | Go back or cancel |
 | Tab, or 1 / 2 / 3 | Switch screens: Persons, Access, Utilities |
+| S | Back to the sign-on screen, to switch databases |
 | Ctrl+L | Redraw the screen, for example after resizing the window |
 | Q | Sign off |
 
@@ -76,6 +82,35 @@ GRANTED, DENIED, EXPIRED or UNKNOWN CARD, the time taken, and recent checks.
 
 **System utilities (PDB900):** store statistics, plus fill, verify, mutate,
 benchmark and reset (reset erases every record).
+
+### Flight database
+
+The second database on the sign-on screen is a made-up airline, with
+fictional airports and a daily schedule of departures. It is a separate store
+on the same external flash as the persons, under its own registry key, and
+the same keys work in it. **Reset store** in the person database erases the
+whole flash, flights included. **Reset flight store** erases only the flights.
+
+The screens show what the flight store holds. It starts empty: press **F** and
+the board writes 20 airports and up to 240 flights to flash. Flight status
+(ON TIME, BOARDING, DEPARTED, LANDED...) follows the clock in the top right
+corner.
+
+**Departure schedule (FLT100):** every stored flight, in departure order,
+opening at the next one due out. **/** finds a flight by number (`XA0421`),
+**N** jumps back to the next departure, and Enter opens the flight.
+
+**Flight display (FLT110):** route, aircraft, times in UTC and local time,
+delay, gate and seats sold per cabin. F7 / F8 show the previous / next flight,
+and **A** / **Z** open the departure / arrival airport.
+
+**Airport directory (FLT200):** every stored airport. **/** finds one by code.
+Enter opens the airport display (FLT210), with its departures and arrivals
+side by side. Tab switches between the lists, Enter opens a flight, and
+F7 / F8 show the previous / next airport.
+
+**System utilities (FLT900):** store statistics, plus fill, verify (compare
+every record with the generator) and reset.
 
 The terminal must be at least 72x20 characters. Larger windows show more rows.
 
@@ -119,10 +154,13 @@ If you already have a Zephyr setup with SDK 1.0.1:
 
 ```
 app/             the Zephyr application
-  ui/ui_tui.c    the terminal interface
-  scenario/      operations on the population: fill, verify, benchmark
+  ui/            the terminal: tui.c draws, ui_tui_main.c is the sign-on
+                 screen, ui_tui.c the persons, ui_tui_flights.c the flights
+  scenario/      operations on the stores: fill, verify, benchmark
   persondb/      the person and credential database API
   dataset/       the generator for synthetic people
+  flightdb/      the flight and airport database API
+  flights/       the generator for the made-up airline schedule
   DESIGN.md      how the storage is laid out, and why
 firmware/        prebuilt firmware for the nRF5340 DK
 scripts/         build.sh, flash.sh, connect.sh

@@ -87,6 +87,9 @@ struct persondb {
  * stack is single-threaded (C7), so a second handle would be a lie. */
 static struct persondb g_db;
 
+/* CONFIG_APP_CBOR_PERSONDB_FRESH_START has run this boot. */
+static bool g_erased;
+
 /* -- plumbing ----------------------------------------------------------- */
 
 static void person_key(char *buf, uint32_t id)
@@ -544,7 +547,10 @@ int persondb_open(struct persondb **out, uint32_t n_persons)
 		return rc;
 	}
 
-	if (IS_ENABLED(CONFIG_APP_CBOR_PERSONDB_FRESH_START)) {
+	/* Once per boot: the terminal opens and closes the store each time the
+	 * sign-on screen counts it or the operator switches to it. */
+	if (IS_ENABLED(CONFIG_APP_CBOR_PERSONDB_FRESH_START) && !g_erased) {
+		g_erased = true;
 		rc = blob_db_erase_all();
 		if (rc != 0) {
 			LOG_ERR("erase_all: %d", rc);

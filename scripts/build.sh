@@ -20,7 +20,9 @@ IMAGE=ghcr.io/zephyrproject-rtos/ci-base@sha256:f09a9642ff7558a21f5d0a2a720844c2
 
 command -v docker >/dev/null || { echo "build.sh: Docker is required" >&2; exit 1; }
 
-docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$WS":/ws -w /ws "$IMAGE" \
+# Host networking: the build only needs to download, and it works where
+# Docker runs without a bridge network ("bridge": "none").
+docker run --rm --network host -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$WS":/ws -w /ws "$IMAGE" \
 	bash -euo pipefail -c "
 	if [ ! -d .west ]; then
 		west init -l '$NAME'

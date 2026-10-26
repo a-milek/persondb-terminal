@@ -26,7 +26,17 @@ project(app_cbor_persondb LANGUAGES C)
 #     (F12, R-H)                                              (F6)
 #     \__ person_cbor: the wire format, private to persondb
 #
+# The full-screen terminal also holds the flight database, beside the person
+# one on the same flash, in the same shape: ui/ -> scenario/flight_scenario ->
+# flightdb/ (the only layer that touches storage, with flight_cbor private to
+# it) and flights/ (the made-up airports and flights, a pure function of an
+# index). Its sign-on screen picks which one to show.
+#
 add_subdirectory(dataset)
 add_subdirectory(persondb)
+if(CONFIG_APP_CBOR_PERSONDB_FRONTEND_TUI)
+  add_subdirectory(flights)
+  add_subdirectory(flightdb)
+endif()
 add_subdirectory(scenario)
 add_subdirectory(ui)
