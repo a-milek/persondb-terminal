@@ -13,9 +13,9 @@ jobs:
       # out one level down.
       - uses: actions/checkout@v4
         with:
-          path: persondb-terminal
-      - run: ./persondb-terminal/scripts/build.sh
+          path: flight-terminal
+      - run: ./flight-terminal/scripts/build.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: persondb-terminal-nrf5340dk
-          path: build/persondb-terminal/zephyr/zephyr.hex
+          name: flight-terminal-nrf5340dk
+          path: build/flight-terminal/zephyr/zephyr.hex

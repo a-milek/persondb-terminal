@@ -15,7 +15,7 @@ set -euo pipefail
 
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 RECOVER=0
-HEX="$REPO/firmware/persondb-terminal-nrf5340dk.hex"
+HEX="$REPO/firmware/flight-terminal-nrf5340dk.hex"
 for a in "$@"; do
 	case "$a" in
 	--recover) RECOVER=1 ;;

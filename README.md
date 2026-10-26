@@ -1,4 +1,4 @@
-# persondb-terminal
+# flight-terminal
 
 An access-control database with a 1990s airline-terminal interface, running on
 an **nRF5340 DK**. Plug in the board, flash it, open a serial terminal, and you
@@ -6,7 +6,7 @@ get a green-screen, keyboard-driven system for browsing people, granting door
 permissions, assigning cards and checking access.
 
 ```
- PDB100  PERSON DIRECTORY           PERSONDB ACCESS CONTROL       28DEC27 1320Z
+ PDB100  PERSON DIRECTORY           FLIGHT TERMINAL               28DEC27 1320Z
 -- 1 PERSONS -- 2 ACCESS -- 3 UTILITIES ----------------------------------------
      NBR  ID       NAME                   DEPT          TITLE         PERM  CARD
   000000  100000   OKAFOR-0000/CIRA       SUPPORT       ENGINEER        17     2
@@ -32,9 +32,9 @@ You need:
 - a serial terminal: `sudo apt install picocom`
 
 ```sh
-git clone https://github.com/a-milek/persondb-terminal
-cd persondb-terminal
-./scripts/flash.sh      # writes firmware/persondb-terminal-nrf5340dk.hex to the board
+git clone https://github.com/a-milek/persondb-terminal flight-terminal
+cd flight-terminal
+./scripts/flash.sh      # writes firmware/flight-terminal-nrf5340dk.hex to the board
 ./scripts/connect.sh    # opens the terminal UI
 ```
 
@@ -154,7 +154,7 @@ The terminal must be at least 72x20 characters. Larger windows show more rows.
   Run `./scripts/flash.sh --recover`. This erases the internal flash and then
   flashes. The stored people on external flash are not affected.
 - **Several boards attached:** pick one with `SERIAL=<J-Link serial> ./scripts/flash.sh`.
-- **Windows or macOS:** flash `firmware/persondb-terminal-nrf5340dk.hex` with
+- **Windows or macOS:** flash `firmware/flight-terminal-nrf5340dk.hex` with
   nRF Util or the nRF Connect *Programmer* app, then connect with PuTTY (or
   `screen` on macOS) at 115200 baud and press Ctrl+L.
 
@@ -190,9 +190,9 @@ downloads the ARM toolchain on the first run.
 
 ```sh
 mkdir persondb-ws && cd persondb-ws          # the west workspace
-git clone https://github.com/a-milek/persondb-terminal
-./persondb-terminal/scripts/build.sh         # -> build/persondb-terminal/zephyr/zephyr.hex
-./persondb-terminal/scripts/flash.sh build/persondb-terminal/zephyr/zephyr.hex
+git clone https://github.com/a-milek/persondb-terminal flight-terminal
+./flight-terminal/scripts/build.sh         # -> build/flight-terminal/zephyr/zephyr.hex
+./flight-terminal/scripts/flash.sh build/flight-terminal/zephyr/zephyr.hex
 ```
 
 The first run puts Zephyr and the required modules (about 1 GB) next to the
@@ -203,7 +203,7 @@ the firmware in `firmware/`. `./scripts/build.sh flights` (or `persons`,
 it goes to `firmware/persondb-terminal-<app>-nrf5340dk.hex`.
 
 If you already have a Zephyr setup with SDK 1.0.1:
-`west init -l persondb-terminal && west update && west build -b nrf5340dk/nrf5340/cpuapp persondb-terminal/app`.
+`west init -l flight-terminal && west update && west build -b nrf5340dk/nrf5340/cpuapp flight-terminal/app`.
 
 ## Layout
 

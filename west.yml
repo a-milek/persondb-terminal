@@ -1,4 +1,4 @@
-# persondb-terminal — west manifest.
+# flight-terminal — west manifest.
 #
 # Every revision is pinned to the exact commit the firmware in firmware/ was
 # built and tested with, so `west update` reproduces that build.
@@ -8,7 +8,7 @@
 
 manifest:
   self:
-    path: persondb-terminal
+    path: flight-terminal
 
   remotes:
     - name: zephyrproject-rtos

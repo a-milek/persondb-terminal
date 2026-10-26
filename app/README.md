@@ -17,13 +17,13 @@ It is also a probe. Everything it ran into is in **[`FINDINGS.md`](FINDINGS.md)*
 the design and the decisions behind it are in **[`DESIGN.md`](DESIGN.md)**;
 measured numbers are in **[`RESULTS.md`](RESULTS.md)**.
 
-In persondb-terminal the terminal UI is the default frontend; the
+In flight-terminal the terminal UI is the default frontend; the
 benchmark runs below select it explicitly.
 
 ```
-west build -b native_sim persondb-terminal/app -- -DCONFIG_APP_CBOR_PERSONDB_FRONTEND_BENCH=y
+west build -b native_sim flight-terminal/app -- -DCONFIG_APP_CBOR_PERSONDB_FRONTEND_BENCH=y
 ./build/zephyr/zephyr.exe --flash=db.bin
-west build -b nrf5340dk/nrf5340/cpuapp persondb-terminal/app -- \
+west build -b nrf5340dk/nrf5340/cpuapp flight-terminal/app -- \
   -DCONFIG_APP_CBOR_PERSONDB_FRONTEND_BENCH=y && west flash
 ```
 
@@ -356,7 +356,7 @@ VT100-compatible terminal attached to the console UART: minicom, picocom,
 screen, PuTTY. Nothing runs on the host but the terminal.
 
 ```
-west build -b nrf5340dk/nrf5340/cpuapp persondb-terminal/app && west flash
+west build -b nrf5340dk/nrf5340/cpuapp flight-terminal/app && west flash
 picocom -b 115200 /dev/ttyACM0      # the DK's application-core VCOM port
 ```
 
@@ -364,7 +364,7 @@ On `native_sim` it takes over the invoking terminal, which must be in raw mode
 for the keys to arrive one at a time:
 
 ```
-west build -b native_sim persondb-terminal/app
+west build -b native_sim flight-terminal/app
 stty raw -echo; ./build/zephyr/zephyr.exe --flash=db.bin; stty sane
 ```
 

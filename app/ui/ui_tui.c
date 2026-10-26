@@ -171,7 +171,7 @@ static void draw_header(void)
 		[TAB_CHECK]  = "PDB200  ACCESS VERIFICATION",
 		[TAB_STORE]  = "PDB900  SYSTEM UTILITIES",
 	};
-	static const char sys[] = "PERSONDB ACCESS CONTROL";
+	static const char sys[] = "FLIGHT TERMINAL";
 	uint32_t now = SCENARIO_BENCH_NOW + (uint32_t)(k_uptime_get() / 1000);
 	char right[24], date[16];
 	int c = 0;

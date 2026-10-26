@@ -6,7 +6,7 @@
 # The workspace is the directory that holds this repository; west clones
 # Zephyr and the modules next to it on the first run (~1 GB).
 #
-#   ./scripts/build.sh            -> ../build/persondb-terminal/zephyr/zephyr.hex
+#   ./scripts/build.sh            -> ../build/flight-terminal/zephyr/zephyr.hex
 #   ./scripts/build.sh --release  ... and copy it to firmware/
 #   ./scripts/build.sh flights    one application alone (persons, flights or
 #                                 library), no sign-on screen
