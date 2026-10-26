@@ -41,6 +41,10 @@ cd persondb-terminal
 The repository includes a prebuilt firmware file, so you don't need to compile
 anything. To quit picocom, press **Ctrl+A** then **Ctrl+X**.
 
+For a terminal with only the flight information, no sign-on screen and no other
+databases, flash `./scripts/flash.sh firmware/persondb-terminal-flights-nrf5340dk.hex`
+instead.
+
 ### First run
 
 The terminal opens on a sign-on screen (SON100) that lists its three databases,
@@ -194,7 +198,9 @@ git clone https://github.com/a-milek/persondb-terminal
 The first run puts Zephyr and the required modules (about 1 GB) next to the
 repository, which is why it goes in its own workspace folder. Every revision is
 pinned in [`west.yml`](west.yml). `./scripts/build.sh --release` also replaces
-the firmware in `firmware/`.
+the firmware in `firmware/`. `./scripts/build.sh flights` (or `persons`,
+`library`) builds one database alone, opening straight into it; with `--release`
+it goes to `firmware/persondb-terminal-<app>-nrf5340dk.hex`.
 
 If you already have a Zephyr setup with SDK 1.0.1:
 `west init -l persondb-terminal && west update && west build -b nrf5340dk/nrf5340/cpuapp persondb-terminal/app`.
