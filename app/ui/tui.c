@@ -328,7 +328,7 @@ static int escape_seq(bool ss3)
 	}
 }
 
-int getkey(int timeout_ms)
+static int read_key(int timeout_ms)
 {
 	static bool after_cr;
 	int c = raw_in(timeout_ms);
@@ -366,6 +366,73 @@ int getkey(int timeout_ms)
 	}
 }
 
+/*
+ * A board starts drawing before anyone is connected, so the first full
+ * screen and the size query can go nowhere, and the terminal shows nothing
+ * until a key changes a row. While the keyboard is idle, send the whole
+ * screen again every IDLE_REFRESH_MS and ask the size again: a terminal
+ * connected later shows the application, at its own size, without a key.
+ */
+#define IDLE_REFRESH_MS 3000
+
+static bool size_wanted;     /* detect_size() is waiting for the answer */
+static int64_t last_key;
+static int64_t last_refresh;
+
+static void idle_refresh(void)
+{
+	int64_t now = k_uptime_get();
+
+	if (now - last_key < IDLE_REFRESH_MS || now - last_refresh < IDLE_REFRESH_MS) {
+		return;
+	}
+	last_refresh = now;
+	out_str("\x1b[?7l" "\x1b" "7\x1b[999;999H\x1b[6n\x1b" "8");
+	/* The grid holds whatever is up, a popup included: send all of it. */
+	sent_valid = false;
+	present();
+}
+
+/* The answer to an idle size query: a new size starts the screen over. */
+static void size_answer(void)
+{
+	int r = CLAMP(cpr_row, MIN_ROWS, MAX_ROWS);
+	int c = CLAMP(cpr_col, MIN_COLS, MAX_COLS);
+
+	if (r != rows || c != cols) {
+		rows = r;
+		cols = c;
+		out_str("\x1b[0m\x1b[2J");
+		sent_valid = false;
+	}
+}
+
+int getkey(int timeout_ms)
+{
+	int64_t until = (timeout_ms < 0) ? 0 : k_uptime_get() + timeout_ms;
+
+	for (;;) {
+		/* Waiting forever, as a popup does, wakes to refresh the screen. */
+		int left = (timeout_ms < 0) ? IDLE_REFRESH_MS
+					    : (int)MAX(until - k_uptime_get(), 0);
+		int k = read_key(left);
+
+		if (k == K_CPR && !size_wanted) {
+			size_answer();
+			continue;       /* not a key: keep waiting out the timeout */
+		}
+		if (k == K_NONE) {
+			idle_refresh();
+			if (timeout_ms < 0) {
+				continue;
+			}
+		} else {
+			last_key = k_uptime_get();
+		}
+		return k;
+	}
+}
+
 /* Ask the terminal where the cursor lands at (999, 999). One that does not
  * answer gets 80x24. */
 void detect_size(void)
@@ -376,6 +443,7 @@ void detect_size(void)
 	out_flush();
 	cols = 80;
 	rows = 24;
+	size_wanted = true;
 	until = k_uptime_get() + 300;
 	while (k_uptime_get() < until) {
 		if (getkey(50) == K_CPR) {
@@ -384,6 +452,7 @@ void detect_size(void)
 			break;
 		}
 	}
+	size_wanted = false;
 	out_str("\x1b[0m\x1b[2J");
 	sent_valid = false;
 }
