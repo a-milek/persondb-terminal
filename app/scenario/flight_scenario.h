@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * flight_scenario — the operations on the flight store's population: fill it
- * from the generator (flights.h), check it against the generator, reset it.
+ * from the generator (flights.h) — airports, airlines, aircraft and crew,
+ * then flights, each with its bookings, the passengers they need and the bags
+ * checked on them — check it against the generator, reset it.
  * The flight database's counterpart of scenario.h; returns structs, never prints.
  */
 
@@ -25,6 +27,12 @@ struct flight_scenario {
 struct flight_verify_report {
 	uint32_t airports_checked;
 	uint32_t flights_checked;
+	uint32_t passengers_checked;
+	uint32_t bookings_checked;
+	uint32_t airlines_checked;
+	uint32_t aircraft_checked;
+	uint32_t crew_checked;
+	uint32_t bags_checked;
 	uint32_t bad;             /* unreadable, or differing from the generator */
 	int64_t  ms;
 };
@@ -36,13 +44,23 @@ int flight_scenario_close(struct flight_scenario *s);
 uint32_t flight_scenario_flights_defined(void);
 
 /**
- * @brief Write the next @p n flights of the schedule, after every airport the
- *        store does not hold yet, and publish them.
+ * How many flights the store holds together with all their bookings and
+ * bags: where the next fill starts. A store from an earlier build holds
+ * flights without them, which a fill then completes.
+ */
+uint32_t flight_scenario_flights_complete(struct flight_scenario *s);
+
+/**
+ * @brief Complete the next @p n flights of the schedule — the flight record
+ *        if the store lacks it, its bookings, every passenger those bookings
+ *        name that the store lacks, and their bags — after every airport,
+ *        airline, aircraft and crew member the store does not hold yet, and
+ *        publish them.
  *
  * Resumable: each call continues from the store's own counts, so a fill
  * interrupted between calls loses nothing it published.
  *
- * @param written  (out) flights written and published
+ * @param written  (out) flights completed and published
  */
 int flight_scenario_fill(struct flight_scenario *s, uint32_t n, uint32_t *written);
 

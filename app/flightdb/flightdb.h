@@ -2,15 +2,20 @@
  * Copyright (c) 2026
  * SPDX-License-Identifier: Apache-2.0
  *
- * flightdb — the flight information API: airports and a daily schedule of
- * flights, stored on the same stack as the person database but as a separate
- * store with its own registry entry. Neither store can see the other's
- * records, and erasing one leaves the other intact.
+ * flightdb — the flight information API: airports, airlines, their aircraft
+ * and crew, a daily schedule of flights, the passengers, their bookings on
+ * those flights and the bags checked on them, stored on the same stack as the
+ * person database but as a separate store with its own registry entry.
+ * Neither store can see the other's records, and erasing one leaves the other
+ * intact.
  *
  * Domain vocabulary only, as in persondb.h: no keys, no blob ids, no CBOR.
- * Records are addressed by position — airport 0..n-1, flight 0..n-1 in
- * departure order — and the store keeps how many of each it holds, so a
- * reader shows exactly what was written, nothing more.
+ * Records are addressed by position — flight 0..n-1 in departure order, and
+ * every other kind 0..n-1 in the order it was written — and the store keeps
+ * how many of each it holds, so a reader shows exactly what was written,
+ * nothing more. References are those positions, held by the record that
+ * points: a booking names its passenger and flight, a bag its booking, and an
+ * aircraft or a crew member the flights it works.
  *
  * Concurrency: single-threaded, like persondb (FINDINGS.md K7). The two are
  * never built into the same image.
@@ -37,10 +42,29 @@ extern "C" {
 #define FLIGHTDB_EQUIP_MAX    4    /* ICAO type, "A320" */
 #define FLIGHTDB_GATE_MAX     4
 #define FLIGHTDB_CABINS       3    /* first, business, economy */
+#define FLIGHTDB_SURNAME_MAX  15
+#define FLIGHTDB_GIVEN_MAX    11
+#define FLIGHTDB_TITLE_MAX    4    /* "MR", "MRS", "MSTR" */
+#define FLIGHTDB_FFP_MAX      9    /* "XA1234567"; empty: not a member */
+#define FLIGHTDB_LOCATOR_LEN  6    /* record locator, "K7QZ2X" */
+#define FLIGHTDB_SEAT_MAX     3    /* "32A"; empty: none assigned */
+#define FLIGHTDB_AIRLINE_CODE 2    /* "XA" */
+#define FLIGHTDB_CALLSIGN_MAX 11
+#define FLIGHTDB_ALLIANCE_MAX 11
+#define FLIGHTDB_REG_MAX      6    /* registration, "VD-KRA" */
+#define FLIGHTDB_SECTORS_MAX  8    /* flights one aircraft flies in the day */
+#define FLIGHTDB_DUTIES_MAX   3    /* flights one crew member works */
+#define FLIGHTDB_TAG_MAX      8    /* bag tag, "XA482913" */
 
 /* Store capacity, declared to the maps when the store is created. */
-#define FLIGHTDB_AIRPORTS_MAX 64
-#define FLIGHTDB_FLIGHTS_MAX  1024
+#define FLIGHTDB_AIRPORTS_MAX   64
+#define FLIGHTDB_FLIGHTS_MAX    1024
+#define FLIGHTDB_PASSENGERS_MAX 1024
+#define FLIGHTDB_BOOKINGS_MAX   4096
+#define FLIGHTDB_AIRLINES_MAX   16
+#define FLIGHTDB_AIRCRAFT_MAX   256
+#define FLIGHTDB_CREW_MAX       1024
+#define FLIGHTDB_BAGS_MAX       4096
 
 #define FLIGHTDB_MIN_PER_DAY  1440u
 
@@ -72,6 +96,113 @@ struct flightdb_flight {
 	uint16_t booked[FLIGHTDB_CABINS];
 };
 
+/** Frequent flyer tier. */
+enum flightdb_tier {
+	FLIGHTDB_TIER_NONE,
+	FLIGHTDB_TIER_BLUE,
+	FLIGHTDB_TIER_SILVER,
+	FLIGHTDB_TIER_GOLD,
+	FLIGHTDB_TIER__COUNT,
+};
+
+struct flightdb_passenger {
+	char     surname[FLIGHTDB_SURNAME_MAX + 1];
+	char     given[FLIGHTDB_GIVEN_MAX + 1];
+	char     title[FLIGHTDB_TITLE_MAX + 1];
+	char     nationality[FLIGHTDB_COUNTRY_MAX + 1];
+	uint16_t birth_year;
+	char     ffp[FLIGHTDB_FFP_MAX + 1];
+	uint8_t  tier;           /* enum flightdb_tier; NONE without an ffp */
+};
+
+/** Where a booking stands, as stored; check-in is kept beside it. */
+enum flightdb_booking_status {
+	FLIGHTDB_BK_CONFIRMED,
+	FLIGHTDB_BK_WAITLISTED,
+	FLIGHTDB_BK_CANCELLED,
+	FLIGHTDB_BK__COUNT,
+};
+
+struct flightdb_booking {
+	char     locator[FLIGHTDB_LOCATOR_LEN + 1];
+	uint16_t passenger;      /* position in the passenger store */
+	uint16_t flight;         /* position in the flight store */
+	uint8_t  cabin;          /* 0..FLIGHTDB_CABINS-1, as in seats[] */
+	char     seat[FLIGHTDB_SEAT_MAX + 1];
+	uint8_t  status;         /* enum flightdb_booking_status */
+	bool     checked_in;
+	uint8_t  bags;
+	uint32_t fare;           /* whole currency units */
+};
+
+struct flightdb_airline {
+	char     code[FLIGHTDB_AIRLINE_CODE + 1];
+	char     name[FLIGHTDB_AIRLINE_MAX + 1];
+	char     callsign[FLIGHTDB_CALLSIGN_MAX + 1];
+	char     hub[FLIGHTDB_CODE_LEN + 1];       /* airport code */
+	char     country[FLIGHTDB_COUNTRY_MAX + 1];
+	char     alliance[FLIGHTDB_ALLIANCE_MAX + 1];
+	uint16_t founded;
+};
+
+struct flightdb_aircraft {
+	char     reg[FLIGHTDB_REG_MAX + 1];
+	char     type[FLIGHTDB_EQUIP_MAX + 1];      /* as in a flight's equipment */
+	char     airline[FLIGHTDB_AIRLINE_CODE + 1];
+	uint16_t seats[FLIGHTDB_CABINS];
+	uint16_t built;          /* year */
+	uint8_t  n_sectors;
+	uint16_t sectors[FLIGHTDB_SECTORS_MAX];   /* flights, in departure order */
+};
+
+enum flightdb_rank {
+	FLIGHTDB_RANK_CAPTAIN,
+	FLIGHTDB_RANK_FIRST_OFFICER,
+	FLIGHTDB_RANK_PURSER,
+	FLIGHTDB_RANK_ATTENDANT,
+	FLIGHTDB_RANK__COUNT,
+};
+
+struct flightdb_crew {
+	uint32_t staff_no;
+	char     surname[FLIGHTDB_SURNAME_MAX + 1];
+	char     given[FLIGHTDB_GIVEN_MAX + 1];
+	uint8_t  rank;           /* enum flightdb_rank */
+	char     airline[FLIGHTDB_AIRLINE_CODE + 1];
+	char     base[FLIGHTDB_CODE_LEN + 1];      /* airport code */
+	uint8_t  n_duties;
+	uint16_t duties[FLIGHTDB_DUTIES_MAX];     /* flights, in departure order */
+};
+
+enum flightdb_bag_status {
+	FLIGHTDB_BAG_CHECKED,
+	FLIGHTDB_BAG_LOADED,
+	FLIGHTDB_BAG_OFFLOADED,
+	FLIGHTDB_BAG_MISHANDLED,
+	FLIGHTDB_BAG__COUNT,
+};
+
+struct flightdb_bag {
+	char     tag[FLIGHTDB_TAG_MAX + 1];
+	uint16_t booking;        /* position in the booking store */
+	uint8_t  weight;         /* kg */
+	char     dest[FLIGHTDB_CODE_LEN + 1];      /* airport code */
+	uint8_t  status;         /* enum flightdb_bag_status */
+	bool     priority;
+};
+
+/** How many records of each kind the store holds. */
+struct flightdb_counts {
+	uint32_t airports;
+	uint32_t flights;
+	uint32_t passengers;
+	uint32_t bookings;
+	uint32_t airlines;
+	uint32_t aircraft;
+	uint32_t crew;
+	uint32_t bags;
+};
+
 /** Where a flight is at a given minute of the day. */
 enum flightdb_status {
 	FLIGHTDB_SCHEDULED,
@@ -86,8 +217,20 @@ enum flightdb_status {
 struct flightdb_stat {
 	uint32_t airports;           /* records held */
 	uint32_t flights;
+	uint32_t passengers;
+	uint32_t bookings;
+	uint32_t airlines;
+	uint32_t aircraft;
+	uint32_t crew;
+	uint32_t bags;
 	uint32_t airport_buckets;    /* geometry the maps chose, read back */
 	uint32_t flight_buckets;
+	uint32_t passenger_buckets;
+	uint32_t booking_buckets;
+	uint32_t airline_buckets;
+	uint32_t aircraft_buckets;
+	uint32_t crew_buckets;
+	uint32_t bag_buckets;
 	size_t   partition_bytes;
 	uint32_t enospc_hits;
 	uint64_t map_gets;
@@ -106,6 +249,10 @@ struct flightdb;
  * @brief Mount the stack and attach to the flight store, creating an empty
  *        one on first use.
  *
+ * A store from an earlier build is upgraded in place: version 1 (airports
+ * and flights) and version 2 (with passengers and bookings) keep every record
+ * they hold, and the tables they lack are added beside them, empty.
+ *
  * @retval 0        ready
  * @retval -ENOTSUP the store was written by a build with another format
  * @retval -EIO     flash error or a corrupt superblock
@@ -116,7 +263,7 @@ int flightdb_open(struct flightdb **db);
 int flightdb_close(struct flightdb *db);
 
 /**
- * @brief Drop every airport and flight and start an empty store.
+ * @brief Drop every record of every kind and start an empty store.
  *
  * Destroys this store's maps only: the person database, which shares the
  * flash, is left as it was.
@@ -136,6 +283,18 @@ int flightdb_airport_put(struct flightdb *db, uint32_t index,
 			 const struct flightdb_airport *a);
 int flightdb_flight_put(struct flightdb *db, uint32_t index,
 			const struct flightdb_flight *f);
+int flightdb_passenger_put(struct flightdb *db, uint32_t index,
+			   const struct flightdb_passenger *p);
+int flightdb_booking_put(struct flightdb *db, uint32_t index,
+			 const struct flightdb_booking *b);
+int flightdb_airline_put(struct flightdb *db, uint32_t index,
+			 const struct flightdb_airline *a);
+int flightdb_aircraft_put(struct flightdb *db, uint32_t index,
+			  const struct flightdb_aircraft *a);
+int flightdb_crew_put(struct flightdb *db, uint32_t index,
+		      const struct flightdb_crew *c);
+int flightdb_bag_put(struct flightdb *db, uint32_t index,
+		     const struct flightdb_bag *b);
 
 /**
  * @retval 0       found
@@ -146,12 +305,24 @@ int flightdb_airport_get(struct flightdb *db, uint32_t index,
 			 struct flightdb_airport *out);
 int flightdb_flight_get(struct flightdb *db, uint32_t index,
 			struct flightdb_flight *out);
+int flightdb_passenger_get(struct flightdb *db, uint32_t index,
+			   struct flightdb_passenger *out);
+int flightdb_booking_get(struct flightdb *db, uint32_t index,
+			 struct flightdb_booking *out);
+int flightdb_airline_get(struct flightdb *db, uint32_t index,
+			 struct flightdb_airline *out);
+int flightdb_aircraft_get(struct flightdb *db, uint32_t index,
+			  struct flightdb_aircraft *out);
+int flightdb_crew_get(struct flightdb *db, uint32_t index,
+		      struct flightdb_crew *out);
+int flightdb_bag_get(struct flightdb *db, uint32_t index,
+		     struct flightdb_bag *out);
 
 /** How many records the store holds. */
-void flightdb_counts(struct flightdb *db, uint32_t *airports, uint32_t *flights);
+void flightdb_counts(struct flightdb *db, struct flightdb_counts *out);
 
-/** Publish @p airports and @p flights records: one superblock write. */
-int flightdb_counts_set(struct flightdb *db, uint32_t airports, uint32_t flights);
+/** Publish the records @p c counts, of every kind: one superblock write. */
+int flightdb_counts_set(struct flightdb *db, const struct flightdb_counts *c);
 
 /* -- helpers ------------------------------------------------------------ */
 
@@ -160,6 +331,18 @@ bool flightdb_flight_equal(const struct flightdb_flight *a,
 			   const struct flightdb_flight *b);
 bool flightdb_airport_equal(const struct flightdb_airport *a,
 			    const struct flightdb_airport *b);
+bool flightdb_passenger_equal(const struct flightdb_passenger *a,
+			      const struct flightdb_passenger *b);
+bool flightdb_booking_equal(const struct flightdb_booking *a,
+			    const struct flightdb_booking *b);
+bool flightdb_airline_equal(const struct flightdb_airline *a,
+			    const struct flightdb_airline *b);
+bool flightdb_aircraft_equal(const struct flightdb_aircraft *a,
+			     const struct flightdb_aircraft *b);
+bool flightdb_crew_equal(const struct flightdb_crew *a,
+			 const struct flightdb_crew *b);
+bool flightdb_bag_equal(const struct flightdb_bag *a,
+			const struct flightdb_bag *b);
 
 /**
  * @brief Status at minute @p now of the day, UTC, from the record alone.
@@ -172,6 +355,15 @@ bool flightdb_airport_equal(const struct flightdb_airport *a,
 enum flightdb_status flightdb_status(const struct flightdb_flight *f, uint32_t now);
 
 const char *flightdb_status_name(enum flightdb_status s);
+
+const char *flightdb_tier_name(enum flightdb_tier t);
+const char *flightdb_booking_status_name(enum flightdb_booking_status s);
+/** "F", "C" or "Y". */
+const char *flightdb_cabin_code(uint8_t cabin);
+/** "CPT", "FO", "PUR" or "FA". */
+const char *flightdb_rank_code(enum flightdb_rank r);
+const char *flightdb_rank_name(enum flightdb_rank r);
+const char *flightdb_bag_status_name(enum flightdb_bag_status s);
 
 int flightdb_stat(struct flightdb *db, struct flightdb_stat *out);
 

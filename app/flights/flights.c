@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <zephyr/sys/util.h>
+
 #include "flights.h"
 
 /* Fictional places on a fictional map, roughly 4 000 NM across. The
@@ -49,15 +51,22 @@ static const struct place airports[] = {
 
 #define N_AIRPORTS ((int)(sizeof(airports) / sizeof(airports[0])))
 
+/* Each carrier's hub is an airport above; its aircraft are registered
+ * under the prefix. */
 static const struct {
 	const char *code;
 	const char *name;
+	const char *callsign;
+	const char *hub;
+	const char *alliance;
+	const char *reg;
+	uint16_t    founded;
 } carriers[] = {
-	{ "XA", "Aurora Airways" },
-	{ "QV", "Quillvale Air" },
-	{ "KR", "Kestrel Regional" },
-	{ "VL", "Vellum Airlines" },
-	{ "ZN", "Zenith Nordic" },
+	{ "XA", "Aurora Airways",   "AURORA",    "NVK", "SKYCIRCLE", "VD", 1948 },
+	{ "QV", "Quillvale Air",    "QUILLVALE", "TSQ", "",          "LM", 1971 },
+	{ "KR", "Kestrel Regional", "KESTREL",   "AMB", "SKYCIRCLE", "GR", 1989 },
+	{ "VL", "Vellum Airlines",  "VELLUM",    "KZD", "MERIDIAN",  "SH", 1962 },
+	{ "ZN", "Zenith Nordic",    "ZENITH",    "ORS", "MERIDIAN",  "NR", 1957 },
 };
 
 #define N_CARRIERS ((int)(sizeof(carriers) / sizeof(carriers[0])))
@@ -186,4 +195,378 @@ void flights_flight(uint32_t index, struct flightdb_flight *out)
 			 (unsigned)(1u + (h >> 8) % (a->gates / 2u + 1u)));
 		out->terminal = (uint8_t)(1 + pier / 2);
 	}
+}
+
+/* -- passengers and bookings -------------------------------------------- */
+
+static const char *const surnames[] = {
+	"ABERNATHY", "BALOGUN", "CASTELLANO", "DRAGOMIR", "EKSTROM", "FONTAINE",
+	"GALLAGHER", "HAKIMI", "IVANOVA", "JANSSEN", "KOWALCZYK", "LINDQVIST",
+	"MARCHETTI", "NAKAMURA", "OKONKWO", "PETRAKIS", "QUINTERO", "ROSSETTI",
+	"SANTORO", "TANAKA", "UDOVIC", "VASQUEZ", "WINTERBOURNE", "YILMAZ",
+	"ZELENKO", "ACHTERBERG", "BRENNAN", "CHAUDHRY", "DESROCHES", "ESPINOZA",
+	"FALKENRATH", "GRUBER",
+};
+
+static const struct {
+	const char *name;
+	bool        female;
+} givens[] = {
+	{ "ADA", true }, { "BORIS", false }, { "CELESTE", true }, { "DMITRI", false },
+	{ "ELENA", true }, { "FELIX", false }, { "GRETA", true }, { "HUGO", false },
+	{ "INGRID", true }, { "JONAS", false }, { "KAMALA", true }, { "LEANDER", false },
+	{ "MAREN", true }, { "NIKOLAI", false }, { "OLIVIA", true }, { "PIETRO", false },
+	{ "RASHIDA", true }, { "SOREN", false }, { "TAMSIN", true }, { "VIKTOR", false },
+	{ "WILHELMINA", true }, { "YUSUF", false }, { "ZORA", true }, { "AUGUSTIN", false },
+};
+
+#define N_SURNAMES ((uint32_t)ARRAY_SIZE(surnames))
+#define N_GIVENS   ((uint32_t)ARRAY_SIZE(givens))
+
+/* No I, O, 0 or 1: a locator is read out over the phone. */
+static const char locator_chars[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+/* Where each cabin's rows start, and its seat letters. Rows only need to
+ * be plausible; slot j of a flight's bookings takes row first + j (+ 5k in
+ * economy), so no two of them share a seat. */
+static const uint8_t cabin_row[FLIGHTDB_CABINS] = { 1, 10, 20 };
+static const char *const cabin_seats[FLIGHTDB_CABINS] = { "ADGK", "ACDFHK", "ABCDEFHJK" };
+
+/* Fare per nautical mile, in hundredths, and the floor, by cabin. */
+static const uint16_t fare_per_nm[FLIGHTDB_CABINS] = { 95, 48, 14 };
+static const uint16_t fare_min[FLIGHTDB_CABINS] = { 900, 420, 59 };
+
+void flights_passenger(uint32_t index, struct flightdb_passenger *out)
+{
+	uint32_t g, h;
+
+	index %= FLIGHTS_PASSENGERS;
+	memset(out, 0, sizeof(*out));
+	g = mix(index, 21) % N_GIVENS;
+	strcpy(out->surname, surnames[mix(index, 20) % N_SURNAMES]);
+	strcpy(out->given, givens[g].name);
+	out->birth_year = (uint16_t)(1942u + mix(index, 22) % 74u);
+	/* Children under 16 in 2027, the terminal's year; MRS and DR adults only. */
+	if (out->birth_year >= 2011u) {
+		strcpy(out->title, givens[g].female ? "MISS" : "MSTR");
+	} else if (givens[g].female) {
+		strcpy(out->title, (out->birth_year < 1995u && (mix(index, 23) & 1u)) ? "MRS" : "MS");
+	} else {
+		strcpy(out->title, (out->birth_year < 1995u && mix(index, 23) % 8u == 0u) ? "DR"
+										      : "MR");
+	}
+	strcpy(out->nationality, airports[mix(index, 24) % N_AIRPORTS].country);
+
+	/* Two in five are in a programme, the higher tiers rarer. */
+	h = mix(index, 25) % 100u;
+	if (h < 40u) {
+		snprintf(out->ffp, sizeof(out->ffp), "%s%07u",
+			 carriers[mix(index, 26) % N_CARRIERS].code,
+			 (unsigned)(mix(index, 27) % 10000000u));
+		out->tier = (h < 4u) ? FLIGHTDB_TIER_GOLD
+			  : (h < 14u) ? FLIGHTDB_TIER_SILVER : FLIGHTDB_TIER_BLUE;
+	}
+}
+
+void flights_booking(uint32_t index, struct flightdb_booking *out)
+{
+	struct flightdb_flight f;
+	uint32_t slot = index % BOOKINGS_PER_FLIGHT;
+	uint32_t lap, total = 0, r, h, row;
+	uint8_t c;
+
+	index %= FLIGHTS_PER_DAY * BOOKINGS_PER_FLIGHT;
+	memset(out, 0, sizeof(*out));
+	for (int i = 0; i < FLIGHTDB_LOCATOR_LEN; i++) {
+		out->locator[i] = locator_chars[mix(index, 30 + (uint32_t)i) % 32u];
+	}
+
+	/* The first lap in order, later ones permuted: 389 is coprime with 600. */
+	lap = index / FLIGHTS_PASSENGERS;
+	out->passenger = (uint16_t)((lap == 0) ? index
+				    : ((index % FLIGHTS_PASSENGERS) * 389u + lap * 97u) %
+				      FLIGHTS_PASSENGERS);
+	out->flight = (uint16_t)(index / BOOKINGS_PER_FLIGHT);
+
+	/* The cabin in proportion to its seats. */
+	flights_flight(out->flight, &f);
+	for (c = 0; c < FLIGHTDB_CABINS; c++) {
+		total += f.seats[c];
+	}
+	r = mix(index, 40) % total;
+	for (c = 0; c + 1 < FLIGHTDB_CABINS && r >= f.seats[c]; c++) {
+		r -= f.seats[c];
+	}
+	out->cabin = c;
+
+	h = mix(index, 41) % 100u;
+	out->status = f.cancelled ? FLIGHTDB_BK_CANCELLED
+		    : (h < 4u) ? FLIGHTDB_BK_CANCELLED
+		    : (h < 10u) ? FLIGHTDB_BK_WAITLISTED : FLIGHTDB_BK_CONFIRMED;
+	if (out->status == FLIGHTDB_BK_CONFIRMED) {
+		row = cabin_row[c] + slot;
+		if (c == FLIGHTDB_CABINS - 1) {
+			row += 5u * (mix(index, 42) % 6u);
+		}
+		/* Rows stop at 49; the modulus tells the compiler so. */
+		snprintf(out->seat, sizeof(out->seat), "%u%c", (unsigned)(row % 100u),
+			 cabin_seats[c][mix(index, 43) % strlen(cabin_seats[c])]);
+		out->checked_in = (mix(index, 44) % 100u) < 65u;
+	}
+	out->bags = (uint8_t)(mix(index, 45) % ((c == FLIGHTDB_CABINS - 1) ? 3u : 4u));
+	out->fare = MAX((uint32_t)fare_min[c], (uint32_t)f.distance * fare_per_nm[c] / 100u) +
+		    mix(index, 46) % 60u;
+}
+
+/* -- airlines, aircraft and crew ---------------------------------------- */
+
+/* Minutes an aircraft stays at the gate between sectors, and a crew member
+ * rests between duties. */
+#define TURNAROUND 45u
+#define CREW_REST  60u
+
+/* Who works a flight, by aircraft band (fleet[]): two pilots always, a
+ * purser from the narrowbodies up, and attendants by size. */
+static const uint8_t cabin_crew[ARRAY_SIZE(fleet)] = { 1, 2, 4 };
+
+struct plan_aircraft {
+	uint8_t  carrier, band, sub;
+	uint8_t  n;
+	uint16_t free_at;        /* minute the aircraft can leave again */
+	uint16_t sectors[FLIGHTDB_SECTORS_MAX];
+};
+
+struct plan_crew {
+	uint8_t  carrier, rank;
+	uint8_t  n;
+	uint16_t free_at;
+	uint16_t duties[FLIGHTDB_DUTIES_MAX];
+};
+
+/*
+ * The day's aircraft rotations and crew rosters, worked out once from the
+ * schedule: each flight in departure order takes the first aircraft of its
+ * carrier and type, and the first crew member of its carrier and each rank
+ * it needs, that is free by then, and a new one when none is. A pure
+ * function of the schedule, like everything here; only computed lazily.
+ */
+static struct {
+	bool                 done;
+	uint32_t             n_aircraft;
+	uint32_t             n_crew;
+	struct plan_aircraft aircraft[FLIGHTDB_AIRCRAFT_MAX];
+	struct plan_crew     crew[FLIGHTDB_CREW_MAX];
+} plan;
+
+static int carrier_of(const struct flightdb_flight *f)
+{
+	for (int c = 0; c < N_CARRIERS; c++) {
+		if (strncmp(f->desig, carriers[c].code, 2) == 0) {
+			return c;
+		}
+	}
+	return 0;
+}
+
+/* The fleet[] band and type the flight's equipment is. */
+static void type_of(const struct flightdb_flight *f, uint8_t *band, uint8_t *sub)
+{
+	for (uint8_t b = 0; b < ARRAY_SIZE(fleet); b++) {
+		for (uint8_t t = 0; t < 2; t++) {
+			if (strcmp(f->equipment, fleet[b].type[t]) == 0) {
+				*band = b;
+				*sub = t;
+				return;
+			}
+		}
+	}
+	*band = 0;
+	*sub = 0;
+}
+
+static void plan_assign_crew(uint32_t flight, uint8_t carrier, uint8_t rank, uint16_t dep,
+			     uint16_t free_at)
+{
+	struct plan_crew *m = NULL;
+
+	for (uint32_t i = 0; i < plan.n_crew; i++) {
+		struct plan_crew *c = &plan.crew[i];
+
+		if (c->carrier == carrier && c->rank == rank && c->n < FLIGHTDB_DUTIES_MAX &&
+		    c->free_at <= dep) {
+			m = c;
+			break;
+		}
+	}
+	if (m == NULL) {
+		if (plan.n_crew == FLIGHTDB_CREW_MAX) {
+			return;         /* a roster gap rather than a corrupt store */
+		}
+		m = &plan.crew[plan.n_crew++];
+		m->carrier = carrier;
+		m->rank = rank;
+	}
+	m->duties[m->n++] = (uint16_t)flight;
+	m->free_at = free_at;
+}
+
+static void plan_build(void)
+{
+	struct flightdb_flight f;
+
+	if (plan.done) {
+		return;
+	}
+	for (uint32_t i = 0; i < FLIGHTS_PER_DAY; i++) {
+		struct plan_aircraft *a = NULL;
+		uint8_t carrier, band, sub;
+		uint16_t arr;
+
+		flights_flight(i, &f);
+		carrier = (uint8_t)carrier_of(&f);
+		type_of(&f, &band, &sub);
+		arr = (uint16_t)(f.dep + f.delay + f.block);
+
+		for (uint32_t k = 0; k < plan.n_aircraft; k++) {
+			struct plan_aircraft *p = &plan.aircraft[k];
+
+			if (p->carrier == carrier && p->band == band && p->sub == sub &&
+			    p->n < FLIGHTDB_SECTORS_MAX && p->free_at <= f.dep) {
+				a = p;
+				break;
+			}
+		}
+		if (a == NULL && plan.n_aircraft < FLIGHTDB_AIRCRAFT_MAX) {
+			a = &plan.aircraft[plan.n_aircraft++];
+			a->carrier = carrier;
+			a->band = band;
+			a->sub = sub;
+		}
+		if (a != NULL) {
+			a->sectors[a->n++] = (uint16_t)i;
+			a->free_at = (uint16_t)(arr + TURNAROUND);
+		}
+
+		if (f.cancelled) {
+			continue;       /* nobody is rostered on a flight not operating */
+		}
+		plan_assign_crew(i, carrier, FLIGHTDB_RANK_CAPTAIN, f.dep, arr + CREW_REST);
+		plan_assign_crew(i, carrier, FLIGHTDB_RANK_FIRST_OFFICER, f.dep, arr + CREW_REST);
+		if (band > 0) {
+			plan_assign_crew(i, carrier, FLIGHTDB_RANK_PURSER, f.dep, arr + CREW_REST);
+		}
+		for (int k = 0; k < cabin_crew[band]; k++) {
+			plan_assign_crew(i, carrier, FLIGHTDB_RANK_ATTENDANT, f.dep,
+					 arr + CREW_REST);
+		}
+	}
+	plan.done = true;
+}
+
+int flights_airline_count(void)
+{
+	return N_CARRIERS;
+}
+
+void flights_airline(int i, struct flightdb_airline *out)
+{
+	int c = i % N_CARRIERS;
+
+	memset(out, 0, sizeof(*out));
+	strcpy(out->code, carriers[c].code);
+	strcpy(out->name, carriers[c].name);
+	strcpy(out->callsign, carriers[c].callsign);
+	strcpy(out->hub, carriers[c].hub);
+	strcpy(out->alliance, carriers[c].alliance);
+	out->founded = carriers[c].founded;
+	for (int k = 0; k < N_AIRPORTS; k++) {
+		if (strcmp(airports[k].code, carriers[c].hub) == 0) {
+			strcpy(out->country, airports[k].country);
+		}
+	}
+}
+
+uint32_t flights_aircraft_count(void)
+{
+	plan_build();
+	return plan.n_aircraft;
+}
+
+void flights_aircraft(uint32_t i, struct flightdb_aircraft *out)
+{
+	const struct plan_aircraft *p;
+	/* 389 is coprime with 26^3, so every aircraft has its own letters. */
+	uint32_t x = (i * 389u + 1000u) % 17576u;
+
+	plan_build();
+	p = &plan.aircraft[i % MAX(plan.n_aircraft, 1u)];
+	memset(out, 0, sizeof(*out));
+	snprintf(out->reg, sizeof(out->reg), "%s-%c%c%c", carriers[p->carrier].reg,
+		 'A' + (int)(x / 676u), 'A' + (int)(x / 26u % 26u), 'A' + (int)(x % 26u));
+	strcpy(out->type, fleet[p->band].type[p->sub]);
+	strcpy(out->airline, carriers[p->carrier].code);
+	for (int c = 0; c < FLIGHTDB_CABINS; c++) {
+		out->seats[c] = fleet[p->band].seats[p->sub][c];
+	}
+	out->built = (uint16_t)(1996u + mix(i, 60) % 30u);
+	out->n_sectors = p->n;
+	memcpy(out->sectors, p->sectors, sizeof(out->sectors));
+}
+
+uint32_t flights_crew_count(void)
+{
+	plan_build();
+	return plan.n_crew;
+}
+
+void flights_crew(uint32_t i, struct flightdb_crew *out)
+{
+	const struct plan_crew *p;
+
+	plan_build();
+	p = &plan.crew[i % MAX(plan.n_crew, 1u)];
+	memset(out, 0, sizeof(*out));
+	/* 389 is coprime with 90000: a staff number each, five digits. */
+	out->staff_no = 10000u + (i * 389u) % 90000u;
+	strcpy(out->surname, surnames[mix(i, 50) % N_SURNAMES]);
+	strcpy(out->given, givens[mix(i, 51) % N_GIVENS].name);
+	out->rank = p->rank;
+	strcpy(out->airline, carriers[p->carrier].code);
+	strcpy(out->base, carriers[p->carrier].hub);
+	out->n_duties = p->n;
+	memcpy(out->duties, p->duties, sizeof(out->duties));
+}
+
+/* -- bags ----------------------------------------------------------------- */
+
+uint32_t flights_booking_bags(uint32_t booking)
+{
+	struct flightdb_booking b;
+
+	flights_booking(booking, &b);
+	return (b.status == FLIGHTDB_BK_CONFIRMED && b.checked_in) ? b.bags : 0u;
+}
+
+void flights_bag(uint32_t booking, uint32_t k, struct flightdb_bag *out)
+{
+	struct flightdb_booking b;
+	struct flightdb_passenger p;
+	struct flightdb_flight f;
+	uint32_t n = booking * 4u + k;   /* a booking has at most three bags */
+	uint32_t h = mix(n, 70) % 100u;
+
+	flights_booking(booking, &b);
+	flights_flight(b.flight, &f);
+	flights_passenger(b.passenger, &p);
+	memset(out, 0, sizeof(*out));
+	/* 389 is coprime with 900000: a tag each, six digits after the carrier. */
+	snprintf(out->tag, sizeof(out->tag), "%.2s%06u", f.desig,
+		 (unsigned)(100000u + (n * 389u) % 900000u));
+	out->booking = (uint16_t)booking;
+	out->weight = (uint8_t)(7u + mix(n, 71) % 26u);
+	strcpy(out->dest, f.to);
+	out->status = (h < 3u) ? FLIGHTDB_BAG_MISHANDLED
+		    : (h < 7u) ? FLIGHTDB_BAG_OFFLOADED
+		    : (h < 25u) ? FLIGHTDB_BAG_CHECKED : FLIGHTDB_BAG_LOADED;
+	out->priority = b.cabin < FLIGHTDB_CABINS - 1 || p.tier >= FLIGHTDB_TIER_SILVER;
 }
