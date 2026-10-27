@@ -589,9 +589,6 @@ void tui_footer(const char *const *hints, size_t n, const char *bar_left,
 	for (size_t i = 0; i + 1 < n; i += 2) {
 		int need = (int)(strlen(hints[i]) + strlen(hints[i + 1]) + 3);
 
-		if (TUI_STANDALONE && strcmp(hints[i], "S") == 0) {
-			continue;       /* no sign-on screen to go back to */
-		}
 		if (c + need > cols) {
 			break;
 		}

@@ -4,12 +4,10 @@
  *
  * flightdb — the flight information API: airports, airlines, their aircraft
  * and crew, a daily schedule of flights, the passengers, their bookings on
- * those flights and the bags checked on them, stored on the same stack as the
- * person database but as a separate store with its own registry entry.
- * Neither store can see the other's records, and erasing one leaves the other
- * intact.
+ * those flights and the bags checked on them, in one store under its own
+ * registry entry.
  *
- * Domain vocabulary only, as in persondb.h: no keys, no blob ids, no CBOR.
+ * Domain vocabulary only: no keys, no blob ids, no CBOR.
  * Records are addressed by position — flight 0..n-1 in departure order, and
  * every other kind 0..n-1 in the order it was written — and the store keeps
  * how many of each it holds, so a reader shows exactly what was written,
@@ -17,8 +15,7 @@
  * points: a booking names its passenger and flight, a bag its booking, and an
  * aircraft or a crew member the flights it works.
  *
- * Concurrency: single-threaded, like persondb (FINDINGS.md K7). The two are
- * never built into the same image.
+ * Concurrency: single-threaded (FINDINGS.md K7).
  */
 
 #ifndef APP_CBOR_PERSONDB_FLIGHTDB_H_
@@ -265,8 +262,8 @@ int flightdb_close(struct flightdb *db);
 /**
  * @brief Drop every record of every kind and start an empty store.
  *
- * Destroys this store's maps only: the person database, which shares the
- * flash, is left as it was.
+ * Destroys this store's maps only, leaving anything else under other registry
+ * keys on the flash as it was.
  */
 int flightdb_erase(struct flightdb *db);
 

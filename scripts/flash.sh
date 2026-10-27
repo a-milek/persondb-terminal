@@ -9,8 +9,8 @@
 #
 # With more than one board attached, choose one: SERIAL=1050123456 ./scripts/flash.sh
 #
-# Only the internal flash is touched: the person and flight stores live on
-# the DK's external QSPI flash and survive reflashing.
+# Only the internal flash is touched: the flight store lives on the DK's
+# external QSPI flash and survives reflashing.
 set -euo pipefail
 
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)

@@ -4,7 +4,7 @@
  *
  * flight_cbor — the flight store's wire format, private to flightdb.
  *
- * Canonical CBOR maps with small integer keys, as in person_cbor.h:
+ * Canonical CBOR maps with small integer keys:
  *
  *   airport    { 1: code, 2: name, 3: city, 4: country, 5: utc_offset,
  *                6: elevation, 7: runways, 8: gates }

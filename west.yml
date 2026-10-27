@@ -28,10 +28,10 @@ manifest:
         name-allowlist:
           - cmsis_6        # the ARM port for Cortex-M
           - hal_nordic     # nRF5340 drivers
-          - zcbor          # the CBOR codec of the person records
+          - zcbor          # the CBOR codec of the flight records
           - mbedtls        # PSA Crypto for zephyr-ubi
           - tf-psa-crypto
-    # blob_db, rootreg and kvhash: the storage stack under persondb, as a
+    # blob_db, rootreg and kvhash: the storage stack under flightdb, as a
     # Zephyr module.
     - name: key_value_db
       remote: wmilek

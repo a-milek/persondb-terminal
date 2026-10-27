@@ -1,22 +1,10 @@
 # flight-terminal
 
-An access-control database with a 1990s airline-terminal interface, running on
-an **nRF5340 DK**. Plug in the board, flash it, open a serial terminal, and you
-get a green-screen, keyboard-driven system for browsing people, granting door
-permissions, assigning cards and checking access.
-
-```
- PDB100  PERSON DIRECTORY           FLIGHT TERMINAL               28DEC27 1320Z
--- 1 PERSONS -- 2 ACCESS -- 3 UTILITIES ----------------------------------------
-     NBR  ID       NAME                   DEPT          TITLE         PERM  CARD
-  000000  100000   OKAFOR-0000/CIRA       SUPPORT       ENGINEER        17     2
-  000001  100001   KOVAC-0001/EVE         SECURITY      CONTRACTOR      22     2
-  000002  100002   HADDAD-0002/OONA       FACILITIES    SPECIALIST      22     3
-  ...
- >                                                                LINE 1 OF 20
- ENTER=DISPLAY  F7=BKWD  F8=FWD  /=LOCATE  F=FILL  TAB=NEXT SCREEN  Q=SIGN OFF
- 1A  ONLINE                                   REV 0  20/8000 PERSONS  LU PDB01
-```
+A made-up airline's flight information system with a 1990s airline-terminal
+interface, running on an **nRF5340 DK**. Plug in the board, flash it, open a
+serial terminal, and you get a green-screen, keyboard-driven system for
+browsing the departure schedule, airports, airlines, fleet, crew, passengers,
+bookings and baggage.
 
 The records are stored on the DK's 8 MB external QSPI flash using the
 [key_value_db](https://github.com/wmilek/key_value_db) storage stack, so they
@@ -41,21 +29,14 @@ cd flight-terminal
 The repository includes a prebuilt firmware file, so you don't need to compile
 anything. To quit picocom, press **Ctrl+A** then **Ctrl+X**.
 
-For a terminal with only the flight information, no sign-on screen and no other
-databases, flash `./scripts/flash.sh firmware/persondb-terminal-flights-nrf5340dk.hex`
-instead.
-
 ### First run
 
-The terminal opens on a sign-on screen (SON100) that lists its three databases,
-the person database, the flight information and the library catalogue, with
-what each store holds. Pick one with the arrow keys or **1** to **3** and press Enter. Press **S** in
-either one to come back and switch; nothing is lost by switching.
-
-The person store starts empty. Press **F**, enter how many people to generate, and
-press Enter. The external flash writes at roughly one person per second, so
-200 people take about 3 minutes. Press **F3** to stop a fill partway through.
-Everything written so far is kept.
+The terminal opens straight into the departure schedule. The store starts
+empty: press **F** and the board writes the airports, airlines, aircraft and
+crew, then the flights with their bookings, passengers and bags. Press **F3**
+to stop a fill partway through; everything written so far is kept. Flight
+status (ON TIME, BOARDING, DEPARTED, LANDED...) follows the clock in the top
+right corner.
 
 ## Using it
 
@@ -65,40 +46,9 @@ Everything written so far is kept.
 | F7 / F8 (or PgUp / PgDn) | Page back / forward |
 | Enter | Open the selected item, or run the selected action |
 | F3 (or Esc) | Go back or cancel |
-| Tab, or 1 / 2 / 3 | Switch screens: Persons, Access, Utilities |
-| S | Back to the sign-on screen, to switch databases |
+| Tab, or 1 to 9 | Switch screens |
 | Ctrl+L | Redraw the screen, for example after resizing the window |
 | Q | Sign off |
-
-**Persons (PDB100):** a list of everyone. Press **/** to jump to a record
-number and **F** to generate more people. Press Enter to open a record.
-
-**Person record (PDB110):** details, with permissions and cards side by side.
-Tab switches between the two lists.
-- **G** grants a permission from a list that marks the ones already held.
-- **D** deletes the selected permission or card.
-- **A** assigns a new card, as 14 hex digits.
-- **C** checks access with the selected card.
-- F7 / F8 show the previous / next person.
-
-**Access verification (PDB200):** enter a card and a door permission to see
-GRANTED, DENIED, EXPIRED or UNKNOWN CARD, the time taken, and recent checks.
-
-**System utilities (PDB900):** store statistics, plus fill, verify, mutate,
-benchmark and reset (reset erases every record).
-
-### Flight database
-
-The second database on the sign-on screen is a made-up airline, with
-fictional airports and a daily schedule of departures. It is a separate store
-on the same external flash as the persons, under its own registry key, and
-the same keys work in it. **Reset store** in the person database erases the
-whole flash, flights and library included. **Reset flight store** erases only the flights.
-
-The screens show what the flight store holds. It starts empty: press **F** and
-the board writes 20 airports and up to 240 flights to flash. Flight status
-(ON TIME, BOARDING, DEPARTED, LANDED...) follows the clock in the top right
-corner.
 
 **Departure schedule (FLT100):** every stored flight, in departure order,
 opening at the next one due out. **/** finds a flight by number (`XA0421`),
@@ -116,29 +66,9 @@ F7 / F8 show the previous / next airport.
 **System utilities (FLT900):** store statistics, plus fill, verify (compare
 every record with the generator) and reset.
 
-### Library catalogue
-
-The third database is a made-up lending library: books by fictional authors,
-shelved by subject, and the loans of their copies. Like the flights it is a
-separate store on the same flash under its own registry key. It starts empty:
-press **F** and enter how many books to add (up to 2048). About a third of the
-copies are written as already lent out, some of them overdue.
-
-**Catalogue (LIB100):** every book with its call number and how many copies
-are on the shelf. **/** finds the next book whose title, author or call number
-starts with what you type, or with that ISBN. Enter opens the book.
-
-**Book display (LIB110):** details and the copies, with who has each one and
-when it is due. Select a copy with Up / Down, then **L** lends it (card number
-and borrower name), **R** returns it and **N** renews it for another 21 days
-(at most three times). F7 / F8 show the previous / next book.
-
-**Loans (LIB200):** every loan, oldest first, with its status: ON LOAN,
-DUE SOON, DUE TODAY, OVERDUE or RETURNED. **O** jumps to the next overdue loan
-and Enter opens its book.
-
-**System utilities (LIB900):** store statistics, plus fill, verify (check the
-books against the generator, and every loan against its book) and reset.
+The airlines (FLT300), fleet (FLT400), crew (FLT500), passengers (FLT600),
+bookings (FLT700) and baggage (FLT800) each have a list and a display screen,
+with cross-links between them.
 
 The terminal must be at least 72x20 characters. Larger windows show more rows.
 
@@ -152,7 +82,7 @@ The terminal must be at least 72x20 characters. Larger windows show more rows.
   `dialout`) with `sudo usermod -aG dialout $USER`, then log out and back in.
 - **Flashing fails with a protection or readback error:** the chip is locked.
   Run `./scripts/flash.sh --recover`. This erases the internal flash and then
-  flashes. The stored people on external flash are not affected.
+  flashes. The flight store on external flash is not affected.
 - **Several boards attached:** pick one with `SERIAL=<J-Link serial> ./scripts/flash.sh`.
 - **Windows or macOS:** flash `firmware/flight-terminal-nrf5340dk.hex` with
   nRF Util or the nRF Connect *Programmer* app, then connect with PuTTY (or
@@ -160,28 +90,20 @@ The terminal must be at least 72x20 characters. Larger windows show more rows.
 
 ## Running without a board
 
-Each database also runs as its own application in Zephyr's simulator
-(native_sim), in your terminal. The only requirement is Docker. The simulated
-flash is a file, so every database is a separate file under `dbs/<app>/` next to
-the repository, and a new name starts empty.
+The terminal also runs in Zephyr's simulator (native_sim), in your terminal.
+The only requirement is Docker. The simulated flash is a file, so every
+database is a separate file under `dbs/flights/` next to the repository, and a
+new name starts empty.
 
 ```sh
-./scripts/sim.sh persons work      # the person database, in dbs/persons/work.bin
-./scripts/sim.sh flights demo      # the flight database, in dbs/flights/demo.bin
-./scripts/sim.sh library city      # the library catalogue, in dbs/library/city.bin
-./scripts/sim.sh all medium        # all three behind the sign-on screen, as on the DK
-./scripts/sim.sh --list            # every database of every application
-./scripts/mkdb.py library big 1000 # make a filled database (here 1000 books)
+./scripts/sim.sh demo          # the database in dbs/flights/demo.bin
+./scripts/sim.sh --list        # every database
+./scripts/mkdb.py big 120      # make a filled database (here 120 flights)
 ```
 
-Each application opens straight into its database, without the sign-on
-screen. `--erase` empties a database before opening it, `--ram` uses a
-throwaway one, and `--build` rebuilds the simulator after a code change (it is
-built on first use). Press **Q** to sign off, or Ctrl+C to stop.
-
-The same split is a build option for the DK:
-`-DCONFIG_APP_CBOR_PERSONDB_TUI_LIBRARY=y` (or `_PERSONS`, `_FLIGHTS`) builds a
-firmware that holds only that database.
+`--erase` empties a database before opening it, `--ram` uses a throwaway one,
+and `--build` rebuilds the simulator after a code change (it is built on first
+use). Press **Q** to sign off, or Ctrl+C to stop.
 
 ## Building from source
 
@@ -189,7 +111,7 @@ The only requirement is Docker. The build runs inside Zephyr's CI image and
 downloads the ARM toolchain on the first run.
 
 ```sh
-mkdir persondb-ws && cd persondb-ws          # the west workspace
+mkdir flight-ws && cd flight-ws              # the west workspace
 git clone https://github.com/a-milek/persondb-terminal flight-terminal
 ./flight-terminal/scripts/build.sh         # -> build/flight-terminal/zephyr/zephyr.hex
 ./flight-terminal/scripts/flash.sh build/flight-terminal/zephyr/zephyr.hex
@@ -198,9 +120,7 @@ git clone https://github.com/a-milek/persondb-terminal flight-terminal
 The first run puts Zephyr and the required modules (about 1 GB) next to the
 repository, which is why it goes in its own workspace folder. Every revision is
 pinned in [`west.yml`](west.yml). `./scripts/build.sh --release` also replaces
-the firmware in `firmware/`. `./scripts/build.sh flights` (or `persons`,
-`library`) builds one database alone, opening straight into it; with `--release`
-it goes to `firmware/persondb-terminal-<app>-nrf5340dk.hex`.
+the firmware in `firmware/`.
 
 If you already have a Zephyr setup with SDK 1.0.1:
 `west init -l flight-terminal && west update && west build -b nrf5340dk/nrf5340/cpuapp flight-terminal/app`.
@@ -209,25 +129,15 @@ If you already have a Zephyr setup with SDK 1.0.1:
 
 ```
 app/             the Zephyr application
-  ui/            the terminal: tui.c draws, ui_tui_main.c is the sign-on
-                 screen, ui_tui.c the persons, ui_tui_flights.c the flights,
-                 ui_tui_library.c the library
-  scenario/      operations on the stores: fill, verify, benchmark
-  persondb/      the person and credential database API
-  dataset/       the generator for synthetic people
-  flightdb/      the flight and airport database API
-  flights/       the generator for the made-up airline schedule
-  librarydb/     the book and loan database API
-  library/       the generator for the made-up books and loans
+  ui/            the terminal: tui.c draws, ui_tui_flights.c the screens
+  scenario/      operations on the store: fill, verify, reset
+  flightdb/      the flight database API
+  flights/       the generator for the made-up airline
   DESIGN.md      how the storage is laid out, and why
 firmware/        prebuilt firmware for the nRF5340 DK
 scripts/         build.sh, flash.sh, connect.sh, sim.sh, mkdb.py
 west.yml         pinned Zephyr, key_value_db and module revisions
 ```
-
-The app also has two other frontends: an interactive shell
-(`-DCONFIG_APP_CBOR_PERSONDB_FRONTEND_SHELL=y`) and an unattended benchmark
-(`-DCONFIG_APP_CBOR_PERSONDB_FRONTEND_BENCH=y`).
 
 This project is derived from `app_cbor_persondb` in
 [key_value_db](https://github.com/wmilek/key_value_db). It is licensed under

@@ -2,17 +2,15 @@
  * Copyright (c) 2026
  * SPDX-License-Identifier: Apache-2.0
  *
- * app_cbor_persondb — entry point.
+ * flight-terminal — entry point.
  *
- * Deliberately empty of logic. The frontend is chosen at build time
- * (CONFIG_APP_CBOR_PERSONDB_FRONTEND_*) and everything it does goes through
- * scenario.h, which goes through persondb.h. See DESIGN.md §7.
+ * Deliberately empty of logic: everything goes through the terminal in
+ * ui_tui_main.c, which goes through flight_scenario.h and flightdb.h.
  */
 
 #include <zephyr/kernel.h>
 
-/** Provided by ui_bench.c, ui_shell.c, ui_tui_main.c or ui_tui_single.c,
- *  whichever the build selected. */
+/** Provided by ui_tui_main.c. */
 int ui_main(void);
 
 int main(void)

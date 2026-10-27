@@ -6,7 +6,7 @@
  * from the generator (flights.h) — airports, airlines, aircraft and crew,
  * then flights, each with its bookings, the passengers they need and the bags
  * checked on them — check it against the generator, reset it.
- * The flight database's counterpart of scenario.h; returns structs, never prints.
+ * Returns structs, never prints.
  */
 
 #ifndef APP_CBOR_PERSONDB_FLIGHT_SCENARIO_H_
@@ -16,8 +16,7 @@
 
 #include "flightdb.h"
 
-/* The terminal's clock starts here, the instant the person build decides
- * access checks at (SCENARIO_BENCH_NOW), so both builds show the same time. */
+/* The terminal's clock starts here. */
 #define FLIGHT_SCENARIO_NOW 1830000000u
 
 struct flight_scenario {
@@ -67,7 +66,7 @@ int flight_scenario_fill(struct flight_scenario *s, uint32_t n, uint32_t *writte
 /** Read every stored record back and compare it with the generator. */
 int flight_scenario_verify(struct flight_scenario *s, struct flight_verify_report *r);
 
-/** Empty the flight store; the person store is not touched. */
+/** Empty the flight store. */
 int flight_scenario_erase(struct flight_scenario *s);
 
 #endif /* APP_CBOR_PERSONDB_FLIGHT_SCENARIO_H_ */

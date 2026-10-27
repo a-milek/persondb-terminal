@@ -8,11 +8,6 @@
 #
 #   ./scripts/build.sh            -> ../build/flight-terminal/zephyr/zephyr.hex
 #   ./scripts/build.sh --release  ... and copy it to firmware/
-#   ./scripts/build.sh flights    one application alone (persons, flights or
-#                                 library), no sign-on screen
-#                                 -> ../build/persondb-terminal-flights/...
-#   ./scripts/build.sh flights --release
-#                                 -> firmware/persondb-terminal-flights-nrf5340dk.hex
 set -euo pipefail
 
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -23,24 +18,15 @@ SDK_VER=1.0.1
 # The image the firmware in firmware/ was built with.
 IMAGE=ghcr.io/zephyrproject-rtos/ci-base@sha256:f09a9642ff7558a21f5d0a2a720844c228a73b0d3d3e6112f1cfd7f6d8970bae
 
-APP=
 RELEASE=false
 for a in "$@"; do
 	case "$a" in
 	--release) RELEASE=true ;;
-	persons | flights | library) APP=$a ;;
-	*) echo "build.sh: unknown argument $a; give persons, flights, library or --release" >&2; exit 1 ;;
+	*) echo "build.sh: unknown argument $a; the only option is --release" >&2; exit 1 ;;
 	esac
 done
-if [ -n "$APP" ]; then
-	BUILD_DIR=build/$NAME-$APP
-	KCONFIG=-DCONFIG_APP_CBOR_PERSONDB_TUI_${APP^^}=y
-	OUT=$NAME-$APP-nrf5340dk.hex
-else
-	BUILD_DIR=build/$NAME
-	KCONFIG=-DCONFIG_APP_CBOR_PERSONDB_TUI_ALL=y
-	OUT=$NAME-nrf5340dk.hex
-fi
+BUILD_DIR=build/$NAME
+OUT=$NAME-nrf5340dk.hex
 
 command -v docker >/dev/null || { echo "build.sh: Docker is required" >&2; exit 1; }
 
@@ -62,7 +48,7 @@ docker run --rm --network host -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$WS":/ws 
 		wget -qO- \$url/toolchain_gnu_linux-x86_64_arm-zephyr-eabi.tar.xz | tar xJ -C \$sdk/gnu
 	fi
 
-	ZEPHYR_SDK_INSTALL_DIR=\$sdk west build -p auto -b $BOARD -d $BUILD_DIR $NAME/app -- $KCONFIG
+	ZEPHYR_SDK_INSTALL_DIR=\$sdk west build -p auto -b $BOARD -d $BUILD_DIR $NAME/app
 	"
 
 HEX="$WS/$BUILD_DIR/zephyr/zephyr.hex"

@@ -1,5 +1,6 @@
 #-------------------------------------------------------------------------------
-# app_cbor_persondb — CBOR person/credential database over the L2 Map shape
+# flight-terminal — a made-up airline's flight database, on a full-screen
+# serial terminal, over the L2 Map shape
 #
 # Copyright (c) 2026
 # SPDX-License-Identifier: Apache-2.0
@@ -7,43 +8,26 @@
 cmake_minimum_required(VERSION 3.13.1)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 
-project(app_cbor_persondb LANGUAGES C)
+project(flight_terminal LANGUAGES C)
 
-# One directory per layer, added bottom-up (DESIGN.md §7). Each subdirectory
-# contributes its own sources and publishes its own header directory, so the
-# build file has the same shape as the design — and a new dependency between
-# layers is a visible edit here, not an #include someone slipped in.
+# One directory per layer, added bottom-up. Each subdirectory contributes its
+# own sources and publishes its own header directory, so the build file has
+# the same shape as the design — and a new dependency between layers is a
+# visible edit here, not an #include someone slipped in.
 #
-#   ui/        frontends: parse and print only                    (F15)
+#   ui/        the terminal: parse and print only
 #     |
-#   scenario/  operations on a population: fill, verify, measure   (F14)
+#   scenario/  operations on the store: fill, verify, erase
 #     |   \_______________________
 #     |                           |
-#   persondb/                  dataset/
-#     the person management       the synthetic population: a pure
-#     API, and the only layer     function of an index. Uses persondb's
-#     that touches storage        record type; touches no storage.
-#     (F12, R-H)                                              (F6)
-#     \__ person_cbor: the wire format, private to persondb
+#   flightdb/                  flights/
+#     the flight information      the made-up airports and flights:
+#     API, and the only layer     a pure function of an index. Uses
+#     that touches storage        flightdb's record types; touches
+#                                 no storage.
+#     \__ flight_cbor: the wire format, private to flightdb
 #
-# The full-screen terminal also holds the flight database, beside the person
-# one on the same flash, in the same shape: ui/ -> scenario/flight_scenario ->
-# flightdb/ (the only layer that touches storage, with flight_cbor private to
-# it) and flights/ (the made-up airports and flights, a pure function of an
-# index). The library catalogue has the same shape again: librarydb/ (with
-# library_cbor) and library/ (the made-up books and loans). The sign-on
-# screen picks which one to show, or a build holds one alone
-# (CONFIG_APP_CBOR_PERSONDB_TUI_*).
-#
-add_subdirectory(dataset)
-add_subdirectory(persondb)
-if(CONFIG_APP_CBOR_PERSONDB_TUI_HAS_FLIGHTS)
-  add_subdirectory(flights)
-  add_subdirectory(flightdb)
-endif()
-if(CONFIG_APP_CBOR_PERSONDB_TUI_HAS_LIBRARY)
-  add_subdirectory(library)
-  add_subdirectory(librarydb)
-endif()
+add_subdirectory(flights)
+add_subdirectory(flightdb)
 add_subdirectory(scenario)
 add_subdirectory(ui)

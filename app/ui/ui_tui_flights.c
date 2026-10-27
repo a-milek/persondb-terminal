@@ -9,11 +9,10 @@
  * passengers and their bookings, each booking and its bags, and the store
  * utilities.
  *
- * Parsing and printing only, like ui_tui.c: every record shown is read from
- * flightdb, so the screens show exactly what the store holds — an empty store
- * shows empty screens until a fill writes the schedule. The terminal itself
- * is tui.c; the sign-on screen in ui_tui_main.c starts this one and gets the
- * terminal back on S.
+ * Parsing and printing only: every record shown is read from flightdb, so
+ * the screens show exactly what the store holds — an empty store shows empty
+ * screens until a fill writes the schedule. The terminal itself is tui.c;
+ * ui_tui_main.c starts this one.
  *
  * Runs on the main thread; everything large here is static.
  */
@@ -28,7 +27,7 @@
 #include "flight_scenario.h"
 #include "flightdb.h"
 #include "tui.h"
-#include "ui_tui_apps.h"
+#include "ui_tui_flights.h"
 
 /* -- application state --------------------------------------------------- */
 
@@ -79,7 +78,7 @@ static int g_als_rc;
 static struct flightdb_aircraft g_acs[FLIGHTDB_AIRCRAFT_MAX];
 static int g_acs_rc;
 
-/* Flight rows, read through a small cache as the person list is. */
+/* Flight rows, read through a small cache. */
 #define ROW_CACHE 64
 
 struct row {
@@ -708,7 +707,7 @@ static void draw_flight_list(void)
 {
 	static const char *const hints[] = {
 		"ENTER", "DISPLAY", "F7", "BKWD", "F8", "FWD", "/", "LOCATE",
-		"N", "NOW", "F", "FILL", "S", "SYSTEM", "Q", "SIGN OFF",
+		"N", "NOW", "F", "FILL", "Q", "SIGN OFF",
 	};
 	int top = body_top();
 	int h = body_bottom() - top;
@@ -868,7 +867,7 @@ static void draw_airport_list(void)
 {
 	static const char *const hints[] = {
 		"ENTER", "DISPLAY", "/", "LOCATE", "F", "FILL", "TAB", "NEXT SCREEN",
-		"S", "SYSTEM", "Q", "SIGN OFF",
+		"Q", "SIGN OFF",
 	};
 	int top = body_top();
 	int h = body_bottom() - top;
@@ -966,7 +965,7 @@ static void draw_passenger_list(void)
 {
 	static const char *const hints[] = {
 		"ENTER", "DISPLAY", "F7", "BKWD", "F8", "FWD", "/", "LOCATE",
-		"F", "FILL", "S", "SYSTEM", "Q", "SIGN OFF",
+		"F", "FILL", "Q", "SIGN OFF",
 	};
 	int top = body_top();
 	int h = body_bottom() - top;
@@ -1082,7 +1081,7 @@ static void draw_booking_list(void)
 {
 	static const char *const hints[] = {
 		"ENTER", "DISPLAY", "F7", "BKWD", "F8", "FWD", "/", "LOCATE",
-		"F", "FILL", "S", "SYSTEM", "Q", "SIGN OFF",
+		"F", "FILL", "Q", "SIGN OFF",
 	};
 	int top = body_top();
 	int h = body_bottom() - top;
@@ -1241,7 +1240,7 @@ static void draw_list_pos(uint32_t cur, uint32_t n)
 static void draw_airline_list(void)
 {
 	static const char *const hints[] = {
-		"ENTER", "DISPLAY", "F", "FILL", "S", "SYSTEM", "Q", "SIGN OFF",
+		"ENTER", "DISPLAY", "F", "FILL", "Q", "SIGN OFF",
 	};
 	int top = body_top();
 	int h = body_bottom() - top;
@@ -1300,7 +1299,7 @@ static void draw_fleet_list(void)
 {
 	static const char *const hints[] = {
 		"ENTER", "DISPLAY", "F7", "BKWD", "F8", "FWD", "/", "LOCATE",
-		"F", "FILL", "S", "SYSTEM", "Q", "SIGN OFF",
+		"F", "FILL", "Q", "SIGN OFF",
 	};
 	int top = body_top();
 	int h = body_bottom() - top;
@@ -1361,7 +1360,7 @@ static void draw_crew_list(void)
 {
 	static const char *const hints[] = {
 		"ENTER", "DISPLAY", "F7", "BKWD", "F8", "FWD", "/", "LOCATE",
-		"F", "FILL", "S", "SYSTEM", "Q", "SIGN OFF",
+		"F", "FILL", "Q", "SIGN OFF",
 	};
 	int top = body_top();
 	int h = body_bottom() - top;
@@ -1445,7 +1444,7 @@ static void draw_bag_list(void)
 {
 	static const char *const hints[] = {
 		"ENTER", "DISPLAY", "F7", "BKWD", "F8", "FWD", "/", "LOCATE",
-		"F", "FILL", "S", "SYSTEM", "Q", "SIGN OFF",
+		"F", "FILL", "Q", "SIGN OFF",
 	};
 	int top = body_top();
 	int h = body_bottom() - top;
@@ -1538,7 +1537,7 @@ static const char *const store_actions[] = {
 static void draw_store(void)
 {
 	static const char *const hints[] = {
-		"ENTER", "EXECUTE", "TAB", "NEXT SCREEN", "S", "SYSTEM", "Q", "SIGN OFF",
+		"ENTER", "EXECUTE", "TAB", "NEXT SCREEN", "Q", "SIGN OFF",
 	};
 	int top = body_top();
 	int r = top + 1;
@@ -1819,7 +1818,7 @@ static void store_reset(void)
 static void act_reset(void)
 {
 	if (confirm("Reset", "Erase every flight and booking?",
-		    "Persons in the other store are kept.")) {
+		    "This cannot be undone.")) {
 		store_reset();
 	}
 }
@@ -2780,21 +2779,6 @@ static void place_schedule(void)
 	}
 }
 
-int tui_flights_count(uint32_t *airports, uint32_t *flights)
-{
-	struct flight_scenario s;
-	struct flightdb_counts c;
-	int rc = flight_scenario_open(&s);
-
-	if (rc == 0) {
-		flightdb_counts(s.db, &c);
-		*airports = c.airports;
-		*flights = c.flights;
-		flight_scenario_close(&s);
-	}
-	return rc;
-}
-
 void tui_flights_run(void)
 {
 	draw = draw_flights;
@@ -2876,12 +2860,6 @@ void tui_flights_run(void)
 		case K_REDRAW:
 			detect_size();
 			break;
-		case 's':
-			if (TUI_STANDALONE) {
-				break;
-			}
-			store_close();
-			return;
 		case 'q':
 		case K_INTR:
 			sign_off(store_close);

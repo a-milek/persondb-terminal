@@ -4,7 +4,7 @@
  *
  * flights — the made-up airports, airlines, aircraft, crew, flights,
  * passengers, bookings and bags the flight store is filled with, as a pure
- * function of an index: the flight database's counterpart of dataset.h.
+ * function of an index.
  * Fictional places on a fictional map, five fictional airlines, one daily
  * schedule of FLIGHTS_PER_DAY departures and FLIGHTS_PASSENGERS travellers
  * holding BOOKINGS_PER_FLIGHT bookings on each, with their checked bags.

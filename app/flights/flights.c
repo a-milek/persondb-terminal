@@ -84,7 +84,7 @@ static const struct equipment fleet[] = {
 	{ UINT16_MAX, { "B789", "A359" }, { { 8, 48, 234 }, { 12, 42, 261 } } },
 };
 
-/* The same mixer as dataset.c, so fields of one flight are independent. */
+/* A hash mixer, so fields of one flight are independent. */
 static uint32_t mix(uint32_t x, uint32_t salt)
 {
 	x += salt * 0x9e3779b9u;

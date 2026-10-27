@@ -16,8 +16,7 @@
  *                                                   -> crew map
  *                                                   -> bags map
  *
- * The person database sits beside it under ('PADB', 0) on the same blob_db,
- * so both survive flashing either firmware. Keys are positions, fixed width,
+ * Keys are positions, fixed width,
  * after a letter per kind: "aNNNN" airports, "fNNNN" flights, "pNNNN"
  * passengers, "bNNNN" bookings, "lNNNN" airlines, "kNNNN" aircraft, "cNNNN"
  * crew and "gNNNN" bags.
@@ -58,7 +57,7 @@ struct flightdb {
 	struct flightdb_stat   st;
 };
 
-/* One store per image, as in persondb.c. */
+/* One store per image. */
 static struct flightdb g_db;
 
 /* CONFIG_APP_CBOR_PERSONDB_FRESH_START has run this boot. */
@@ -89,7 +88,7 @@ static int map_set(struct flightdb *db, uint64_t root, const char *k,
 	rc = db->ops->set(root, k, strlen(k), val, len);
 	if (rc == -ENOSPC) {
 		/* Bucket overflow or the directory blob unplaceable — the same
-		 * two walls persondb meets (FINDINGS.md K2, K13). */
+		 * two walls of kvhash (FINDINGS.md K2, K13). */
 		db->st.enospc_hits++;
 		LOG_ERR("map full on key '%s'", k);
 	}
@@ -209,7 +208,7 @@ static int create_ops_maps(struct flightdb *db)
 /*
  * Allocate and create every map, then bind the superblock last: that one
  * write publishes the store. A crash before it leaks the map roots until a
- * format, as for persondb (FINDINGS.md B8).
+ * format (FINDINGS.md B8).
  */
 static int create_store(struct flightdb *db)
 {
@@ -308,9 +307,7 @@ int flightdb_open(struct flightdb **out)
 		LOG_ERR("blob_db_mount: %d", rc);
 		return rc;
 	}
-	/* Once per boot, as in persondb.c. Whichever store opens second
-	 * erases the first one's new, empty store; the first one recreates it
-	 * on its next open, so both still start over. */
+	/* Once per boot: later opens keep what this run writes. */
 	if (IS_ENABLED(CONFIG_APP_CBOR_PERSONDB_FRESH_START) && !g_erased) {
 		g_erased = true;
 		rc = blob_db_erase_all();
@@ -370,8 +367,8 @@ int flightdb_close(struct flightdb *db)
  * Destroy the maps first, then build new ones and commit. A crash in between
  * leaves a superblock naming destroyed maps, which the next erase destroys
  * again (-ENOENT, taken as done) — the order DESIGN.md §12.3 uses for drops.
- * blob_db_erase_all() would be one write instead, and would take the person
- * database with it.
+ * blob_db_erase_all() would be one write instead, and would take anything
+ * else on the flash with it.
  */
 int flightdb_erase(struct flightdb *db)
 {
